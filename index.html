@@ -461,10 +461,16 @@ async function syncFromOneDrive(){
   if(btn) btn.disabled = true;
   showLoading('Buscando archivo en OneDrive...', '"' + MS_CONFIG.fileName + '"');
   try {
-    const search = await msGet(`https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(MS_CONFIG.fileName)}')?$select=id,name,lastModifiedDateTime`);
-    const file = search.value && search.value.find(f => f.name === MS_CONFIG.fileName);
-    if(!file) throw new Error('No se encontró "' + MS_CONFIG.fileName + '" en OneDrive. Verifica que el nombre del archivo sea exactamente ese.');
-    updateLoading('Descargando...', 'Última modificación: ' + new Date(file.lastModifiedDateTime).toLocaleString('es-CL'));
+    // Busca directamente por ruta en OneDrive personal (sin SPO)
+    let file = null;
+    try {
+      file = await msGet(`https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(MS_CONFIG.fileName)}?$select=id,name,lastModifiedDateTime`);
+    } catch(e1) {
+      const children = await msGet(`https://graph.microsoft.com/v1.0/me/drive/root/children?$select=id,name,lastModifiedDateTime`);
+      file = children.value && children.value.find(f => f.name === MS_CONFIG.fileName);
+    }
+    if(!file || !file.id) throw new Error('No se encontró "' + MS_CONFIG.fileName + '" en OneDrive. Asegúrate que el archivo esté en la carpeta raíz de OneDrive.');
+    updateLoading('Descargando...', 'Última modificación: ' + (file.lastModifiedDateTime ? new Date(file.lastModifiedDateTime).toLocaleString('es-CL') : ''));
     const contentResp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${file.id}/content`, {headers:{Authorization:'Bearer '+MS_TOKEN}});
     if(!contentResp.ok) throw new Error('Error al descargar el archivo (' + contentResp.status + ')');
     const buf = await contentResp.arrayBuffer();

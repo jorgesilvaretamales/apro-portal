@@ -596,6 +596,8 @@ function renderOCEmpty(){
   </div>`;
 }
 
+let OC_INDEX = [];
+
 function searchOC(q){
   if(!q.trim()){ renderOCEmpty(); return; }
   if(!DB.ventas.length){ document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Sincroniza desde OneDrive o carga el Excel primero.</p></div>'; return; }
@@ -610,12 +612,13 @@ function searchOC(q){
   });
   const keys = Object.keys(groups);
   if(!keys.length){ document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin resultados</h3><p>No se encontraron coincidencias para ese término.</p></div>'; return; }
+  OC_INDEX = keys;
   let html = '<div class="results-list">';
-  keys.forEach(oc => {
+  keys.forEach((oc, idx) => {
     const g = groups[oc];
     const facts = [...new Set(g.rows.map(r=>r['N° Factura']).filter(f=>f&&norm(String(f))!=='sin facturar'))];
     const fl = facts.length ? facts.slice(0,2).join(', ')+(facts.length>2?'…':'') : 'Sin facturar';
-    html += `<div class="result-item" onclick="showOCDetail(${JSON.stringify(oc)})">
+    html += `<div class="result-item" onclick="showOCDetail(${idx})">
       <div class="result-meta">
         <div><div class="result-label">Sucursal</div><div class="result-value">${esc(g.sucursal)}</div></div>
         <div><div class="result-label">Orden de Compra</div><div class="result-value">${esc(oc)}</div></div>
@@ -629,7 +632,8 @@ function searchOC(q){
   document.getElementById('oc-results').innerHTML = html;
 }
 
-function showOCDetail(oc){
+function showOCDetail(idx){
+  const oc = OC_INDEX[idx]; if(!oc) return;
   const rows = DB.ventas.filter(r => String(r['Orden de Compra']||'(sin OC)') === oc);
   document.getElementById('oc-list-view').style.display='none';
   document.getElementById('oc-detail-view').style.display='block';
@@ -707,6 +711,8 @@ function buildOCTable(rows){
 // ================================================================
 // PRODUCTOS
 // ================================================================
+let PROD_INDEX = []; // stores model names by index to avoid inline JSON issues
+
 function searchProducts(q){
   const el = document.getElementById('prod-results');
   if(!q.trim()){ el.innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.<br>Puedes combinar palabras en cualquier orden.</p></div>'; return; }
@@ -721,13 +727,14 @@ function searchProducts(q){
   matches.forEach(r => { const m=r['Modelo']||'(sin modelo)'; if(!mm[m]) mm[m]=[]; mm[m].push(r); });
   const mkeys = Object.keys(mm);
   if(!mkeys.length){ el.innerHTML='<div class="no-data"><h3>Sin resultados</h3><p>Prueba con otros términos.</p></div>'; return; }
+  PROD_INDEX = mkeys; // store for click access
   let html = '<div class="results-list">';
-  mkeys.forEach(m => {
+  mkeys.forEach((m, idx) => {
     const rows=mm[m];
     const colors=[...new Set(rows.map(r=>r['Color']).filter(Boolean))];
     const hm=[...new Set(rows.map(r=>r['H/M']).filter(Boolean))];
     const precio=rows[0]&&rows[0]['Precio APRO'];
-    html += `<div class="product-result" onclick="showProductDetail(${JSON.stringify(m)})">
+    html += `<div class="product-result" onclick="showProductDetail(${idx})">
       <div class="product-result-inner">
         <div>
           <div class="product-model">${esc(m)}</div>
@@ -748,7 +755,8 @@ function searchProducts(q){
   el.innerHTML = html;
 }
 
-function showProductDetail(modelo){
+function showProductDetail(idx){
+  const modelo = PROD_INDEX[idx]; if(!modelo) return;
   const rows = DB.base.filter(r => (r['Modelo']||'(sin modelo)') === modelo);
   document.getElementById('prod-list-view').style.display='none';
   document.getElementById('prod-detail-view').style.display='block';

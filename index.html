@@ -457,52 +457,16 @@ async function msGet(url){
 // SINCRONIZACIÓN ONEDRIVE
 // ================================================================
 async function syncFromOneDrive(){
-  if(!MS_TOKEN){ showToast('Inicia sesión con Microsoft para sincronizar', true); return; }
+  // Token de Microsoft no requerido para descarga directa
   const btn = document.getElementById('sync-btn');
   if(btn) btn.disabled = true;
   showLoading('Buscando archivo en OneDrive...', '"' + MS_CONFIG.fileName + '"');
   try {
-    // Acceso directo via share token (más confiable para cuentas personales)
-    updateLoading('Conectando con OneDrive...', 'Accediendo al archivo');
-    let fileId = null;
-    let downloadUrl = null;
-
-    // Intento 1: via share token del link directo
-    try {
-      const shareResp = await fetch(
-        `https://graph.microsoft.com/v1.0/shares/${MS_CONFIG.shareToken}/driveItem`,
-        {headers:{Authorization:'Bearer '+MS_TOKEN}}
-      );
-      if(shareResp.ok){
-        const shareData = await shareResp.json();
-        fileId = shareData.id;
-        downloadUrl = shareData['@microsoft.graph.downloadUrl'] || null;
-      }
-    } catch(e){}
-
-    // Intento 2: via /me/drive directo
-    if(!fileId){
-      try {
-        const r2 = await fetch(
-          `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(MS_CONFIG.fileName)}`,
-          {headers:{Authorization:'Bearer '+MS_TOKEN}}
-        );
-        if(r2.ok){ const d2=await r2.json(); fileId=d2.id; downloadUrl=d2['@microsoft.graph.downloadUrl']||null; }
-      } catch(e){}
-    }
-
-    if(!fileId && !downloadUrl) throw new Error('No se pudo acceder al archivo. Verifica que el link de OneDrive sea correcto.');
-    updateLoading('Descargando...', 'Archivo encontrado');
-    // Descargar usando downloadUrl directo o via Graph
-    let contentResp;
-    if(downloadUrl){
-      contentResp = await fetch(downloadUrl);
-    } else {
-      contentResp = await fetch(
-        `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`,
-        {headers:{Authorization:'Bearer '+MS_TOKEN}}
-      );
-    }
+    // Descarga directa desde OneDrive sin Graph API (evita restricciones SPO)
+    updateLoading('Descargando desde OneDrive...', 'Conectando al archivo');
+    const directUrl = 'https://1drv.ms/u/c/69d400a86eadcb94/IQD6NkHYD3sgRZkHxI6cNmjDAUc7TrkmmHNyWAIQ5nHXFaY?download=1';
+    updateLoading('Descargando...', 'Obteniendo archivo Excel');
+    let contentResp = await fetch(directUrl);
     if(!contentResp.ok) throw new Error('Error al descargar el archivo (' + contentResp.status + ')');
     const buf = await contentResp.arrayBuffer();
     updateLoading('Procesando hojas...', 'Leyendo Base y Ventas');

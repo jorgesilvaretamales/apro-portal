@@ -332,7 +332,8 @@ const MS_CONFIG = {
   // Esta URL se actualizará automáticamente según donde esté alojada la página
   get redirectUri(){ return window.location.origin + window.location.pathname.replace(/\/$/,'') + (window.location.pathname.endsWith('/')? '' : '/').replace(/\/index\.html$/,'/'); },
   scopes: ['Files.Read','Files.Read.All','offline_access','openid','profile'],
-  fileName: 'Gestion APRO.xlsx'
+  fileName: 'Gestion APRO.xlsx',
+  shareToken: 'u!aHR0cHM6Ly8xZHJ2Lm1zL3gvYy82OWQ0MDBhODZlYWRjYjk0L0lRRDZOa0hZRDNzZ1Jaa0h4STZjTm1qREFVYzdUcmttbUhOeVdBSVE1bkhYRmFZP2U9WW14Q01i'
 };
 
 // ================================================================
@@ -461,15 +462,47 @@ async function syncFromOneDrive(){
   if(btn) btn.disabled = true;
   showLoading('Buscando archivo en OneDrive...', '"' + MS_CONFIG.fileName + '"');
   try {
-    // Endpoint correcto para OneDrive personal (sin SharePoint)
-    updateLoading('Conectando con OneDrive...', 'Buscando archivo');
-    const driveResp = await msGet('https://graph.microsoft.com/v1.0/me/drive');
-    const driveId = driveResp.id;
-    const children = await msGet(`https://graph.microsoft.com/v1.0/drives/${driveId}/root/children?$select=id,name,lastModifiedDateTime`);
-    let file = children.value && children.value.find(f => f.name === MS_CONFIG.fileName);
-    if(!file || !file.id) throw new Error('No se encontró "' + MS_CONFIG.fileName + '" en OneDrive. Asegúrate que el archivo esté en la carpeta raíz de OneDrive y no dentro de subcarpetas.');
-    updateLoading('Descargando...', 'Última modificación: ' + (file.lastModifiedDateTime ? new Date(file.lastModifiedDateTime).toLocaleString('es-CL') : ''));
-    const contentResp = await fetch(`https://graph.microsoft.com/v1.0/drives/${driveId}/items/${file.id}/content`, {headers:{Authorization:'Bearer '+MS_TOKEN}});
+    // Acceso directo via share token (más confiable para cuentas personales)
+    updateLoading('Conectando con OneDrive...', 'Accediendo al archivo');
+    let fileId = null;
+    let downloadUrl = null;
+
+    // Intento 1: via share token del link directo
+    try {
+      const shareResp = await fetch(
+        `https://graph.microsoft.com/v1.0/shares/${MS_CONFIG.shareToken}/driveItem`,
+        {headers:{Authorization:'Bearer '+MS_TOKEN}}
+      );
+      if(shareResp.ok){
+        const shareData = await shareResp.json();
+        fileId = shareData.id;
+        downloadUrl = shareData['@microsoft.graph.downloadUrl'] || null;
+      }
+    } catch(e){}
+
+    // Intento 2: via /me/drive directo
+    if(!fileId){
+      try {
+        const r2 = await fetch(
+          `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(MS_CONFIG.fileName)}`,
+          {headers:{Authorization:'Bearer '+MS_TOKEN}}
+        );
+        if(r2.ok){ const d2=await r2.json(); fileId=d2.id; downloadUrl=d2['@microsoft.graph.downloadUrl']||null; }
+      } catch(e){}
+    }
+
+    if(!fileId && !downloadUrl) throw new Error('No se pudo acceder al archivo. Verifica que el link de OneDrive sea correcto.');
+    updateLoading('Descargando...', 'Archivo encontrado');
+    // Descargar usando downloadUrl directo o via Graph
+    let contentResp;
+    if(downloadUrl){
+      contentResp = await fetch(downloadUrl);
+    } else {
+      contentResp = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/content`,
+        {headers:{Authorization:'Bearer '+MS_TOKEN}}
+      );
+    }
     if(!contentResp.ok) throw new Error('Error al descargar el archivo (' + contentResp.status + ')');
     const buf = await contentResp.arrayBuffer();
     updateLoading('Procesando hojas...', 'Leyendo Base y Ventas');

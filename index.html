@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>APRO Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -14,35 +15,54 @@
 }
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--obsidian);min-height:100vh;font-size:14px}
 h1,h2,h3,h4{font-family:'Cormorant Garamond',serif}
+
 #loading-overlay{position:fixed;inset:0;background:rgba(14,14,14,0.75);display:none;align-items:center;justify-content:center;z-index:2000}
 .loading-box{background:var(--surface);padding:2rem 3rem;text-align:center;border-top:3px solid var(--accent);min-width:280px}
 .spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 1rem}
 @keyframes spin{to{transform:rotate(360deg)}}
 #loading-msg{font-size:1rem;font-weight:500;margin-bottom:4px;font-family:'Cormorant Garamond',serif}
 #loading-sub{font-size:12px;color:var(--warm-gray)}
+
 .toast{position:fixed;bottom:2rem;right:2rem;background:var(--obsidian);color:#fff;padding:0.8rem 1.5rem;font-size:13px;z-index:9999;transform:translateY(100px);opacity:0;transition:all 0.3s;border-left:3px solid var(--accent);max-width:360px;line-height:1.4}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.error{border-left-color:var(--danger)}
-#auth-screen{position:fixed;inset:0;background:var(--obsidian);display:flex;align-items:center;justify-content:center;z-index:1000}
-.auth-box{background:var(--surface);padding:3rem 2.5rem;width:400px;border-top:3px solid var(--accent)}
+
+/* AUTH */
+#auth-screen{position:fixed;inset:0;background:#050505;display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem}
+.auth-box{background:var(--surface);padding:2.5rem;width:420px;border-top:3px solid var(--accent)}
 .auth-logo{font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:300;letter-spacing:0.2em;color:var(--obsidian);margin-bottom:4px}
 .auth-logo span{color:var(--accent)}
 .auth-sub{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:2.5rem}
 .auth-box input{width:100%;border:none;border-bottom:1px solid var(--border);padding:0.7rem 0;font-family:'DM Sans',sans-serif;font-size:14px;background:transparent;color:var(--obsidian);outline:none;margin-bottom:1.5rem;transition:border-color 0.2s}
 .auth-box input:focus{border-bottom-color:var(--accent)}
-.auth-box input::placeholder{color:var(--warm-gray)}
-.btn-primary{width:100%;background:var(--obsidian);color:#fff;border:none;padding:0.9rem;font-family:'DM Sans',sans-serif;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s}
+.auth-box input::placeholder{color:var(--warm-gray)} #login-user::placeholder,#login-pass::placeholder{color:#555}
+.btn-primary{width:100%;background:var(--obsidian);color:#fff;border:none;padding:0.9rem;font-family:'DM Sans',sans-serif;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;margin-bottom:0.5rem}
 .btn-primary:hover{background:var(--charcoal)}
 .auth-error{color:var(--danger);font-size:12px;margin-bottom:1rem;display:none;padding:0.5rem;background:rgba(192,57,43,0.06);border-left:2px solid var(--danger)}
-.link-btn{text-align:center;margin-top:1rem;font-size:12px;color:var(--warm-gray);cursor:pointer;text-decoration:underline}
+.auth-success{color:var(--success);font-size:12px;margin-bottom:1rem;display:none;padding:0.5rem;background:rgba(46,125,82,0.06);border-left:2px solid var(--success)}
+.link-btn{text-align:center;margin-top:0.8rem;font-size:12px;color:var(--warm-gray);cursor:pointer;text-decoration:underline;display:block}
 .link-btn:hover{color:var(--obsidian)}
+
+/* MODAL */
+.modal{display:none;position:fixed;inset:0;background:rgba(14,14,14,0.85);z-index:1100;align-items:center;justify-content:center}
+.modal.open{display:flex}
+.modal-box{background:var(--surface);padding:2.5rem;width:420px;border-top:3px solid var(--accent)}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:400;margin-bottom:1.5rem}
+.modal-box input,.modal-box select,.modal-box textarea{width:100%;border:none;border-bottom:1px solid var(--border);padding:0.6rem 0;font-family:'DM Sans',sans-serif;font-size:14px;background:transparent;color:var(--obsidian);outline:none;margin-bottom:1.2rem;transition:border-color 0.2s;resize:none}
+.modal-box input:focus,.modal-box select:focus,.modal-box textarea:focus{border-bottom-color:var(--accent)}
+.modal-box input::placeholder,.modal-box textarea::placeholder{color:var(--warm-gray)}
+.modal-label{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:4px;display:block}
+.modal-field{margin-bottom:0.8rem}
+
+/* APP */
 #app{display:none;min-height:100vh;flex-direction:column}
 header{background:var(--obsidian);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;position:sticky;top:0;z-index:100}
 .header-logo{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;letter-spacing:0.2em}
 .header-logo span{color:var(--accent)}
 .header-nav{display:flex}
-.nav-btn{background:none;border:none;color:rgba(255,255,255,0.55);padding:0 1.2rem;height:56px;cursor:pointer;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;font-family:'DM Sans',sans-serif;transition:color 0.2s;border-bottom:2px solid transparent}
+.nav-btn{background:none;border:none;color:rgba(255,255,255,0.55);padding:0 1rem;height:56px;cursor:pointer;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-family:'DM Sans',sans-serif;transition:color 0.2s;border-bottom:2px solid transparent;white-space:nowrap}
 .nav-btn:hover,.nav-btn.active{color:#fff;border-bottom-color:var(--accent)}
+.cart-badge{background:var(--accent);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;margin-left:4px;font-weight:600}
 .header-right{display:flex;align-items:center;gap:0.8rem}
 .sync-status{font-size:11px;color:rgba(255,255,255,0.35)}
 .sync-btn{background:none;border:1px solid rgba(200,169,122,0.4);color:var(--accent);padding:0.3rem 0.9rem;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;transition:all 0.2s;white-space:nowrap}
@@ -53,6 +73,7 @@ header{background:var(--obsidian);color:#fff;display:flex;align-items:center;jus
 .logout-btn:hover{border-color:var(--accent);color:var(--accent)}
 main{flex:1;padding:2rem}
 .section{display:none}.section.active{display:block}
+
 .search-header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}
 .search-title{font-size:1.8rem;font-weight:400;color:var(--obsidian);flex:0 0 auto}
 .search-wrap{flex:1;position:relative;min-width:200px;max-width:520px}
@@ -60,6 +81,7 @@ main{flex:1;padding:2rem}
 .search-input:focus{border-bottom-color:var(--accent)}
 .search-input::placeholder{color:var(--warm-gray)}
 .search-icon{position:absolute;right:0;top:50%;transform:translateY(-50%);color:var(--warm-gray);font-size:18px;pointer-events:none}
+
 .results-list{display:flex;flex-direction:column}
 .result-item{border:1px solid var(--border);border-bottom:none;padding:1rem 1.5rem;cursor:pointer;background:var(--surface);display:flex;align-items:center;justify-content:space-between;transition:background 0.15s}
 .result-item:first-child{border-top:2px solid var(--accent)}
@@ -74,18 +96,21 @@ main{flex:1;padding:2rem}
 .no-data{text-align:center;padding:4rem 2rem;color:var(--warm-gray)}
 .no-data h3{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:400;margin-bottom:0.5rem}
 .no-data p{font-size:13px;line-height:1.6;margin-top:0.3rem}
+
 .detail-view{display:none}
 .detail-header{display:flex;align-items:center;gap:1.5rem;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border)}
 .back-btn{background:none;border:none;cursor:pointer;color:var(--warm-gray);font-size:12px;letter-spacing:0.1em;text-transform:uppercase;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:0.5rem;padding:0;flex-shrink:0;transition:color 0.2s}
 .back-btn:hover{color:var(--obsidian)}
 .detail-title{font-size:1.7rem;font-weight:400;font-family:'Cormorant Garamond',serif}
 .detail-subtitle{font-size:13px;color:var(--warm-gray);margin-top:3px}
+
 .factura-card{margin-bottom:1.5rem;border:1px solid var(--border);background:var(--surface)}
 .factura-head{background:var(--obsidian);color:#fff;padding:1rem 1.5rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap}
 .fh-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:3px}
 .fh-value{font-size:14px;font-weight:500}
 .factura-num{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:500;color:var(--accent);margin-right:0.5rem;white-space:nowrap}
 .sinfact-head{background:var(--warm-gray);color:#fff;padding:1rem 1.5rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap}
+
 .detail-table-wrap{overflow-x:auto}
 .detail-table{width:100%;border-collapse:collapse;font-size:13px}
 .detail-table th{padding:0.6rem 1rem;background:var(--surface2);text-align:left;font-weight:500;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--warm-gray);border-bottom:1px solid var(--border);white-space:nowrap}
@@ -94,6 +119,7 @@ main{flex:1;padding:2rem}
 .detail-table tr:hover td{background:var(--surface2)}
 .neg{color:var(--danger);font-weight:500}
 .muted{color:var(--warm-gray)}
+
 .product-result{border:1px solid var(--border);border-bottom:none;background:var(--surface);cursor:pointer;transition:background 0.15s}
 .product-result:first-child{border-top:2px solid var(--accent)}
 .product-result:last-child{border-bottom:1px solid var(--border)}
@@ -110,6 +136,19 @@ main{flex:1;padding:2rem}
 .genero-title{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500}
 .color-section{padding-left:1rem;margin-bottom:1.5rem}
 .color-title{font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:0.6rem;padding:0.4rem 0;border-bottom:1px solid var(--border)}
+
+/* MUESTRAS */
+.muestra-check{width:18px;height:18px;cursor:pointer;accent-color:var(--accent-dark);flex-shrink:0}
+.cart-bar{position:sticky;bottom:0;background:var(--obsidian);color:#fff;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;border-top:2px solid var(--accent);margin:0 -2rem}
+.cart-info{font-size:13px;color:rgba(255,255,255,0.7)}
+.cart-count{font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--accent);font-weight:500}
+.cart-actions{display:flex;gap:0.8rem}
+.btn-cart{padding:0.6rem 1.2rem;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:'DM Sans',sans-serif;border:1px solid rgba(200,169,122,0.5);background:transparent;color:var(--accent);transition:all 0.2s}
+.btn-cart:hover{background:var(--accent);color:#fff}
+.btn-cart-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-cart-primary:hover{background:var(--accent-dark)}
+
+/* ADMIN */
 .admin-layout{display:grid;grid-template-columns:1fr 340px;gap:2rem;align-items:start}
 .admin-users-list{background:var(--surface);border:1px solid var(--border)}
 .admin-form{background:var(--surface);border:1px solid var(--border);padding:1.5rem;position:sticky;top:72px}
@@ -139,6 +178,10 @@ main{flex:1;padding:2rem}
 .toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.2s}
 .toggle-switch input:checked+.toggle-slider{background:var(--success)}
 .toggle-switch input:checked+.toggle-slider:before{transform:translateX(16px)}
+
+.checkbox-row{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.8rem}
+.checkbox-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent-dark);cursor:pointer}
+.checkbox-row label{font-size:14px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -154,28 +197,187 @@ main{flex:1;padding:2rem}
 
 <!-- AUTH -->
 <div id="auth-screen">
-  <div class="auth-box">
-    <div class="auth-logo">A<span>P</span>RO</div>
-    <div class="auth-sub">Portal de Ventas</div>
-    <div class="auth-error" id="login-error"></div>
-    <input type="text" id="login-user" placeholder="Usuario o correo" autocomplete="username">
-    <input type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn-primary" onclick="doLogin()">Ingresar</button>
-    <div class="link-btn" onclick="toggleChangePass(true)">Cambiar contraseña</div>
+  <div style="background:#0A0A0A;width:100%;max-width:560px;border-radius:4px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.6)">
+
+    <!-- Top accent -->
+    <div style="display:flex;height:3px">
+      <div style="flex:1;background:#C8A97A"></div>
+      <div style="flex:1;background:#E8382E"></div>
+    </div>
+
+    <!-- Brands -->
+    <div style="display:grid;grid-template-columns:1fr 1px 1fr">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.8rem 1.5rem 1.2rem">
+        <div style="font-size:9px;letter-spacing:0.35em;color:#555;text-transform:uppercase;margin-bottom:0.6rem">Distribuidor Oficial</div>
+        <div style="font-size:1.7rem;font-weight:500;color:#fff;letter-spacing:0.08em;line-height:1">VICSA</div>
+        <div style="font-size:9px;letter-spacing:0.25em;color:#E8382E;text-transform:uppercase;font-weight:500;margin-top:3px">Safety</div>
+        <div style="width:28px;height:1px;background:#222;margin:0.8rem 0"></div>
+        <div style="font-size:10px;color:#555;text-align:center;line-height:1.6">EPP · Calzado · Vestuario</div>
+      </div>
+      <div style="background:#1E1E1E;position:relative">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:#0A0A0A;border:1px solid #222;display:flex;align-items:center;justify-content:center">
+          <div style="font-size:9px;color:#444">×</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.8rem 1.5rem 1.2rem">
+        <div style="font-size:9px;letter-spacing:0.35em;color:#555;text-transform:uppercase;margin-bottom:0.6rem">Cliente Estratégico</div>
+        <div style="font-size:1.7rem;font-weight:500;color:#fff;letter-spacing:0.12em;line-height:1">APRO</div>
+        <div style="font-size:9px;letter-spacing:0.25em;color:#C8A97A;text-transform:uppercase;font-weight:500;margin-top:3px">Seguridad Industrial</div>
+        <div style="width:28px;height:1px;background:#222;margin:0.8rem 0"></div>
+        <div style="font-size:10px;color:#555;text-align:center;line-height:1.6">Stock · Ventas · B2B</div>
+      </div>
+    </div>
+
+    <!-- CATÁLOGOS BUTTON -->
+    <div style="margin:0 1.5rem 1rem">
+      <a href="https://catalogos.vicsa.cl/visor/" target="_blank" style="text-decoration:none;display:block">
+        <div style="position:relative;overflow:hidden;border:1px solid #2A2A2A;padding:0.9rem 1.2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;cursor:pointer;transition:border-color 0.3s"
+             onmouseover="this.style.borderColor='#C8A97A';this.querySelector('.cat-shine').style.left='120%'"
+             onmouseout="this.style.borderColor='#2A2A2A';this.querySelector('.cat-shine').style.left='-40%'">
+          <div class="cat-shine" style="position:absolute;top:0;left:-40%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(200,169,122,0.06),transparent);transition:left 0.6s ease;pointer-events:none"></div>
+          <div style="display:flex;align-items:center;gap:0.9rem">
+            <div style="width:34px;height:34px;border:1px solid #2A2A2A;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8A97A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                <line x1="12" y1="6" x2="16" y2="6"/><line x1="12" y1="10" x2="16" y2="10"/>
+              </svg>
+              <div style="position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:#E8382E;border:2px solid #0A0A0A"></div>
+            </div>
+            <div>
+              <div style="font-size:9px;letter-spacing:0.25em;color:#555;text-transform:uppercase;margin-bottom:2px">Colección completa</div>
+              <div style="font-size:12px;color:#fff;font-weight:500;letter-spacing:0.04em">Descarga nuestros catálogos</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <div style="font-size:9px;letter-spacing:0.2em;color:#C8A97A;text-transform:uppercase;font-weight:500">Aquí</div>
+            <div style="width:22px;height:22px;border:1px solid #C8A97A;border-radius:50%;display:flex;align-items:center;justify-content:center">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#C8A97A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- KAM CARD -->
+    <div style="margin:0 1.5rem;border:1px solid #1E1E1E;padding:1rem 1.2rem;display:flex;align-items:center;gap:1rem;background:#111">
+      <div style="width:40px;height:40px;border-radius:50%;background:#1A1A1A;border:1px solid #2A2A2A;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <div style="font-size:12px;font-weight:500;color:#C8A97A;letter-spacing:0.05em">JS</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:9px;letter-spacing:0.2em;color:#555;text-transform:uppercase;margin-bottom:3px">Tu KAM</div>
+        <div style="font-size:14px;font-weight:500;color:#fff;margin-bottom:5px">Jorge Silva</div>
+        <div style="display:flex;gap:1.2rem;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="width:5px;height:5px;background:#C8A97A;border-radius:50%"></div>
+            <span style="font-size:11px;color:#888">jorge.silva@vicsa.cl</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="width:5px;height:5px;background:#C8A97A;border-radius:50%"></div>
+            <span style="font-size:11px;color:#888">+569 9032 4222</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
+        <div style="width:7px;height:7px;border-radius:50%;background:#2E7D52"></div>
+        <div style="font-size:8px;color:#2E7D52;letter-spacing:0.1em;text-transform:uppercase">Online</div>
+      </div>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div style="padding:1.2rem 1.5rem 1.5rem;display:flex;flex-direction:column;align-items:center">
+      <div style="text-align:center;margin-bottom:1rem">
+        <div style="font-size:9px;letter-spacing:0.3em;color:#333;text-transform:uppercase;margin-bottom:5px">Portal de Gestión</div>
+        <div style="width:40px;height:1px;background:#1E1E1E;margin:0 auto"></div>
+      </div>
+      <div style="width:100%;max-width:280px">
+        <div class="auth-error" id="login-error" style="margin-bottom:0.8rem"></div>
+        <input type="text" id="login-user" placeholder="Usuario o correo" autocomplete="username"
+          style="width:100%;border:none;border-bottom:1px solid #1E1E1E;padding:0.6rem 0;font-family:'DM Sans',sans-serif;font-size:13px;background:transparent;color:#fff;outline:none;margin-bottom:0.8rem">
+        <input type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')doLogin()"
+          style="width:100%;border:none;border-bottom:1px solid #1E1E1E;padding:0.6rem 0;font-family:'DM Sans',sans-serif;font-size:13px;background:transparent;color:#fff;outline:none;margin-bottom:1.2rem">
+        <button onclick="doLogin()"
+          style="width:100%;background:#fff;color:#0A0A0A;border:none;padding:0.75rem;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;font-weight:500;cursor:pointer;border-radius:2px;margin-bottom:0.7rem">
+          Ingresar
+        </button>
+        <div style="display:flex;justify-content:space-between">
+          <span onclick="showAuthPanel('change')" style="font-size:10px;color:#444;cursor:pointer;text-decoration:underline">Cambiar contraseña</span>
+          <span onclick="showAuthPanel('recover')" style="font-size:10px;color:#444;cursor:pointer;text-decoration:underline">Olvidé mi contraseña</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom -->
+    <div style="height:1px;background:#141414"></div>
+    <div style="padding:0.6rem 1.5rem;text-align:center">
+      <div style="font-size:9px;color:#2A2A2A;letter-spacing:0.15em;text-transform:uppercase">VICSA Safety Comercial Limitada · 2025</div>
+    </div>
+
   </div>
 </div>
 
-<!-- CHANGE PASS MODAL -->
-<div id="cp-modal" style="display:none;position:fixed;inset:0;background:rgba(14,14,14,0.85);z-index:1100;align-items:center;justify-content:center">
-  <div class="auth-box" style="width:380px">
-    <div style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;margin-bottom:1.5rem;font-weight:400">Cambiar contraseña</div>
-    <div class="auth-error" id="cp-error"></div>
-    <input type="text" id="cp-user" placeholder="Usuario o correo">
-    <input type="password" id="cp-old" placeholder="Contraseña actual">
-    <input type="password" id="cp-new1" placeholder="Nueva contraseña">
-    <input type="password" id="cp-new2" placeholder="Confirmar nueva contraseña">
-    <button class="btn-primary" onclick="doChangePass()">Guardar</button>
-    <div class="link-btn" onclick="toggleChangePass(false)">Cancelar</div>
+<!-- CHANGE PASSWORD PANEL -->
+<div class="modal" id="modal-change">
+  <div class="modal-box">
+    <div class="modal-title">Cambiar contraseña</div>
+    <div class="auth-error" id="change-error"></div>
+    <div class="auth-success" id="change-ok"></div>
+    <input type="text" placeholder="Usuario o correo" id="ch-user">
+    <input type="password" placeholder="Contraseña actual" id="ch-old">
+    <input type="password" placeholder="Nueva contraseña" id="ch-new1">
+    <input type="password" placeholder="Confirmar nueva contraseña" id="ch-new2">
+    <button class="btn-primary" onclick="doChangePass()">Guardar contraseña</button>
+    <span class="link-btn" onclick="closeModal('modal-change')">Cancelar</span>
+  </div>
+</div>
+
+<!-- RECOVER PASSWORD PANEL -->
+<div class="modal" id="modal-recover">
+  <div class="modal-box">
+    <div class="modal-title">Recuperar contraseña</div>
+    <div class="auth-error" id="recover-error"></div>
+    <div class="auth-success" id="recover-ok"></div>
+    <p style="font-size:13px;color:var(--warm-gray);margin-bottom:1.5rem;line-height:1.6">Ingresa tu correo registrado y recibirás tu contraseña actual por mail.</p>
+    <input type="email" placeholder="Correo registrado" id="rec-mail">
+    <button class="btn-primary" onclick="doRecover()">Enviar contraseña</button>
+    <span class="link-btn" onclick="closeModal('modal-recover')">Cancelar</span>
+  </div>
+</div>
+
+<!-- FORCE CHANGE PASSWORD (first login) -->
+<div class="modal" id="modal-force-change">
+  <div class="modal-box">
+    <div class="modal-title">Bienvenido — Cambia tu contraseña</div>
+    <p style="font-size:13px;color:var(--warm-gray);margin-bottom:1.5rem;line-height:1.6">Por seguridad, debes crear una contraseña personal antes de continuar.</p>
+    <div class="auth-error" id="fc-error"></div>
+    <input type="password" placeholder="Nueva contraseña (mín. 6 caracteres)" id="fc-new1">
+    <input type="password" placeholder="Confirmar contraseña" id="fc-new2">
+    <button class="btn-primary" onclick="doForceChange()">Continuar</button>
+  </div>
+</div>
+
+<!-- FINALIZAR MUESTRA MODAL -->
+<div class="modal" id="modal-muestra">
+  <div class="modal-box" style="width:520px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <div class="modal-title">Finalizar Solicitud de Muestra</div>
+    <div class="auth-error" id="muestra-error"></div>
+    <div class="modal-field"><label class="modal-label">Nombre Vendedor</label><input id="m-vendedor" placeholder="Nombre completo"></div>
+    <div class="modal-field"><label class="modal-label">Sucursal</label><input id="m-sucursal" placeholder="Sucursal"></div>
+    <div class="modal-field"><label class="modal-label">Empresa Destino</label><input id="m-empresa" placeholder="Empresa destino de la muestra"></div>
+    <div class="modal-field"><label class="modal-label">Teléfono</label><input id="m-telefono" placeholder="+56 9 xxxx xxxx"></div>
+    <div class="modal-field"><label class="modal-label">Dirección de Envío</label><input id="m-direccion" placeholder="Calle, número, ciudad"></div>
+    <div class="checkbox-row" style="margin-bottom:1.5rem">
+      <input type="checkbox" id="m-devolucion">
+      <label for="m-devolucion">Con devolución</label>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);padding:1rem;margin-bottom:1.5rem">
+      <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:0.8rem">Artículos seleccionados</div>
+      <div id="muestra-resumen"></div>
+    </div>
+    <button class="btn-primary" onclick="doEnviarMuestra()">Finalizar y Enviar</button>
+    <span class="link-btn" onclick="closeModal('modal-muestra')">Cancelar</span>
   </div>
 </div>
 
@@ -186,6 +388,7 @@ main{flex:1;padding:2rem}
     <nav class="header-nav">
       <button class="nav-btn active" onclick="showSection('oc')" id="nav-oc">Buscar OC</button>
       <button class="nav-btn" onclick="showSection('productos')" id="nav-productos">Productos</button>
+      <button class="nav-btn" onclick="showSection('muestras')" id="nav-muestras">Muestras <span class="cart-badge" id="cart-badge" style="display:none">0</span></button>
       <button class="nav-btn" onclick="showSection('admin')" id="nav-admin" style="display:none">Mantenedor</button>
     </nav>
     <div class="header-right">
@@ -242,6 +445,37 @@ main{flex:1;padding:2rem}
       </div>
     </div>
 
+    <!-- MUESTRAS -->
+    <div class="section" id="section-muestras">
+      <div id="muest-list-view">
+        <div class="search-header">
+          <div class="search-title">Solicitar Muestra</div>
+          <div class="search-wrap">
+            <input class="search-input" id="muest-search" placeholder="Modelo, Código, Color, Género..." oninput="searchMuestras(this.value)">
+            <span class="search-icon">⌕</span>
+          </div>
+        </div>
+        <div id="muest-results"></div>
+      </div>
+      <div class="detail-view" id="muest-detail-view">
+        <div class="detail-header">
+          <button class="back-btn" onclick="backToList('muest')">← Volver a búsqueda</button>
+          <div><div class="detail-title" id="muest-detail-title"></div></div>
+        </div>
+        <div id="muest-detail-content"></div>
+        <div class="cart-bar" id="cart-bar" style="display:none">
+          <div>
+            <div class="cart-info">Artículos en carrito</div>
+            <div class="cart-count"><span id="cart-num">0</span> seleccionados</div>
+          </div>
+          <div class="cart-actions">
+            <button class="btn-cart" onclick="backToList('muest')">Agregar más</button>
+            <button class="btn-cart btn-cart-primary" onclick="openFinalizar()">Agregar y Finalizar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- MANTENEDOR -->
     <div class="section" id="section-admin">
       <div class="search-header">
@@ -259,7 +493,8 @@ main{flex:1;padding:2rem}
           <div class="form-field"><label class="form-label">Nombre</label><input class="form-input" id="f-nombre" placeholder="Nombre completo"></div>
           <div class="form-field"><label class="form-label">Sucursal</label><input class="form-input" id="f-sucursal" placeholder="Sucursal"></div>
           <div class="form-field"><label class="form-label">Correo</label><input class="form-input" id="f-mail" type="email" placeholder="correo@empresa.cl"></div>
-          <div class="form-field"><label class="form-label">Contraseña</label><input class="form-input" id="f-pass" type="password" placeholder="Contraseña de acceso"></div>
+          <div class="form-field"><label class="form-label">Mail Supervisor</label><input class="form-input" id="f-supervisor" type="email" placeholder="supervisor@empresa.cl"></div>
+          <div class="form-field"><label class="form-label">Contraseña</label><input class="form-input" id="f-pass" type="password" placeholder="Contraseña inicial"></div>
           <div class="form-field"><label class="form-label">Rol</label>
             <select class="form-input" id="f-rol" style="cursor:pointer">
               <option value="user">Usuario</option>
@@ -279,28 +514,51 @@ main{flex:1;padding:2rem}
 </div>
 
 <script>
+// ================================================================
+// CONFIG
+// ================================================================
 const SHEET_ID = '15zEFwWunTGzxpsHYI_GrG4ztTuw4IMpwJHJyWifXWjo';
 
+// EmailJS — reemplaza con tus datos reales
+const EJS = {
+  publicKey:  'rs1IuFpz8suB-0aOZ',
+  serviceId:  'jorgesilvaretamales',
+  templateId: 'template_c061uaa'
+};
+
+const KAM_MAIL = 'jorge.silva@vicsa.cl';
+
+// ================================================================
+// ESTADO
+// ================================================================
 let DB = {ventas:[], base:[]};
 let USERS = JSON.parse(localStorage.getItem('apro_users')||'[]');
 let SESSION = JSON.parse(sessionStorage.getItem('apro_session')||'null');
-let OC_INDEX=[], PROD_INDEX=[], editingUserId=null;
+let OC_INDEX=[], PROD_INDEX=[], MUEST_INDEX=[];
+let CART = []; // [{articulo, codigo}]
+let editingUserId=null;
+let pendingUser=null; // user waiting for force-change
 
 if(!USERS.length){
-  USERS=[{id:1,nombre:'Administrador',sucursal:'Central',mail:'admin@apro.cl',pass:'admin123',rol:'admin',activo:true}];
+  USERS=[{id:1,nombre:'Administrador',sucursal:'Central',mail:'admin@apro.cl',supervisor:'',pass:'admin123',mustChange:false,rol:'admin',activo:true}];
   saveUsers();
 }
 function saveUsers(){localStorage.setItem('apro_users',JSON.stringify(USERS));}
 
-// ── GOOGLE SHEETS ──
+// Init EmailJS
+if(EJS.publicKey!=='TU_PUBLIC_KEY') emailjs.init(EJS.publicKey);
+
+// ================================================================
+// GOOGLE SHEETS
+// ================================================================
 async function fetchSheet(name){
   const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(name)}`;
   const r=await fetch(url);
-  if(!r.ok) throw new Error('Error al conectar con Google Sheets ('+r.status+')');
+  if(!r.ok) throw new Error('Error al conectar ('+r.status+')');
   const txt=await r.text();
   const json=JSON.parse(txt.replace(/^[^(]+\(|\);?\s*$/g,''));
   const cols=json.table.cols.map(c=>c.label||'');
-  return json.table.rows.map(row=>{
+  return (json.table.rows||[]).map(row=>{
     const obj={};
     (row.c||[]).forEach((cell,i)=>{obj[cols[i]]=cell?(cell.v!==null&&cell.v!==undefined?cell.v:''):'';});
     return obj;
@@ -320,38 +578,107 @@ async function syncData(){
     showToast('Sincronizado · '+DB.base.length+' productos · '+DB.ventas.length+' líneas');
     const oq=document.getElementById('oc-search'); if(oq&&oq.value) searchOC(oq.value);
     const pq=document.getElementById('prod-search'); if(pq&&pq.value) searchProducts(pq.value);
+    const mq=document.getElementById('muest-search'); if(mq&&mq.value) searchMuestras(mq.value);
   }catch(e){showToast('Error: '+e.message,true);}
   hideLoading();
   if(btn) btn.disabled=false;
 }
 
-// ── AUTH ──
+// Write a row to Google Sheets via Apps Script (requires deployment)
+// For now, muestras are stored locally and sent via email
+// To enable sheet writing, deploy an Apps Script Web App and set APPS_SCRIPT_URL
+const APPS_SCRIPT_URL = ''; // Set this later
+
+async function writeMuestraToSheet(data){
+  if(!APPS_SCRIPT_URL) return; // skip if not configured
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'appendMuestra', ...data})
+    });
+  } catch(e){ console.warn('Sheet write skipped:', e.message); }
+}
+
+// ================================================================
+// AUTH
+// ================================================================
+function showAuthPanel(panel){
+  if(panel==='change') openModal('modal-change');
+  if(panel==='recover') openModal('modal-recover');
+}
+
 function doLogin(){
   const u=document.getElementById('login-user').value.trim();
   const p=document.getElementById('login-pass').value;
   const user=USERS.find(x=>x.activo&&(x.mail===u||x.nombre===u)&&x.pass===p);
   const err=document.getElementById('login-error'); err.style.display='none';
   if(!user){err.textContent='Usuario o contraseña incorrectos';err.style.display='block';return;}
-  SESSION={id:user.id,nombre:user.nombre,rol:user.rol,sucursal:user.sucursal};
+  if(user.mustChange){
+    pendingUser=user;
+    openModal('modal-force-change');
+    return;
+  }
+  SESSION={id:user.id,nombre:user.nombre,rol:user.rol,sucursal:user.sucursal,mail:user.mail,supervisor:user.supervisor||''};
   sessionStorage.setItem('apro_session',JSON.stringify(SESSION));
   startApp();
 }
 
-function toggleChangePass(show){
-  document.getElementById('cp-modal').style.display=show?'flex':'none';
-  if(!show){['cp-user','cp-old','cp-new1','cp-new2'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cp-error').style.display='none';}
+function doForceChange(){
+  const n1=document.getElementById('fc-new1').value;
+  const n2=document.getElementById('fc-new2').value;
+  const err=document.getElementById('fc-error'); err.style.display='none';
+  if(n1.length<6){err.textContent='Mínimo 6 caracteres';err.style.display='block';return;}
+  if(n1!==n2){err.textContent='Las contraseñas no coinciden';err.style.display='block';return;}
+  pendingUser.pass=n1; pendingUser.mustChange=false;
+  saveUsers();
+  SESSION={id:pendingUser.id,nombre:pendingUser.nombre,rol:pendingUser.rol,sucursal:pendingUser.sucursal,mail:pendingUser.mail,supervisor:pendingUser.supervisor||''};
+  sessionStorage.setItem('apro_session',JSON.stringify(SESSION));
+  closeModal('modal-force-change');
+  pendingUser=null;
+  showToast('Contraseña actualizada correctamente');
+  startApp();
 }
+
 function doChangePass(){
-  const u=document.getElementById('cp-user').value.trim();
-  const o=document.getElementById('cp-old').value;
-  const n1=document.getElementById('cp-new1').value;
-  const n2=document.getElementById('cp-new2').value;
-  const err=document.getElementById('cp-error'); err.style.display='none';
+  const u=document.getElementById('ch-user').value.trim();
+  const o=document.getElementById('ch-old').value;
+  const n1=document.getElementById('ch-new1').value;
+  const n2=document.getElementById('ch-new2').value;
+  const err=document.getElementById('change-error');
+  const ok=document.getElementById('change-ok');
+  err.style.display='none'; ok.style.display='none';
   const user=USERS.find(x=>(x.mail===u||x.nombre===u)&&x.pass===o);
   if(!user){err.textContent='Usuario o contraseña actual incorrectos';err.style.display='block';return;}
-  if(n1.length<4){err.textContent='Mínimo 4 caracteres';err.style.display='block';return;}
+  if(n1.length<6){err.textContent='Mínimo 6 caracteres';err.style.display='block';return;}
   if(n1!==n2){err.textContent='Las contraseñas no coinciden';err.style.display='block';return;}
-  user.pass=n1; saveUsers(); toggleChangePass(false); showToast('Contraseña actualizada');
+  user.pass=n1; user.mustChange=false; saveUsers();
+  ok.textContent='Contraseña actualizada correctamente'; ok.style.display='block';
+  setTimeout(()=>closeModal('modal-change'),1500);
+}
+
+async function doRecover(){
+  const mail=document.getElementById('rec-mail').value.trim();
+  const err=document.getElementById('recover-error');
+  const ok=document.getElementById('recover-ok');
+  err.style.display='none'; ok.style.display='none';
+  const user=USERS.find(x=>x.mail===mail&&x.activo);
+  if(!user){err.textContent='No se encontró un usuario con ese correo';err.style.display='block';return;}
+  if(EJS.publicKey==='TU_PUBLIC_KEY'){
+    ok.textContent='[Demo] Tu contraseña es: '+user.pass; ok.style.display='block'; return;
+  }
+  showLoading('Enviando correo...','');
+  try{
+    await emailjs.send(EJS.serviceId, EJS.templateId, {
+      to_email: mail,
+      to_name: user.nombre,
+      subject: 'Recuperación de contraseña APRO Portal',
+      message: `Hola ${user.nombre},\n\nTu contraseña actual es: ${user.pass}\n\nTe recomendamos cambiarla después de ingresar.\n\nAPRO Portal`
+    });
+    ok.textContent='Te enviamos tu contraseña al correo registrado'; ok.style.display='block';
+  }catch(e){err.textContent='Error al enviar: '+e.text||e.message;err.style.display='block';}
+  hideLoading();
 }
 
 function startApp(){
@@ -361,18 +688,29 @@ function startApp(){
   if(SESSION.rol==='admin') document.getElementById('nav-admin').style.display='';
   renderAdminUsers(); showSection('oc'); renderOCEmpty();
   document.getElementById('prod-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.</p></div>';
+  document.getElementById('muest-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Selecciona los artículos que deseas solicitar como muestra.</p></div>';
   syncData();
 }
 
 function doLogout(){
-  SESSION=null; sessionStorage.removeItem('apro_session');
+  SESSION=null; CART=[];
+  sessionStorage.removeItem('apro_session');
   document.getElementById('app').style.display='none';
   document.getElementById('auth-screen').style.display='flex';
+  updateCartBadge();
 }
 
 if(SESSION) startApp();
 
-// ── NAV ──
+// ================================================================
+// MODALS
+// ================================================================
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ================================================================
+// NAV
+// ================================================================
 function showSection(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -380,25 +718,27 @@ function showSection(id){
   document.getElementById('nav-'+id).classList.add('active');
 }
 function backToList(t){
-  if(t==='oc'){document.getElementById('oc-list-view').style.display='';document.getElementById('oc-detail-view').style.display='none';}
-  else{document.getElementById('prod-list-view').style.display='';document.getElementById('prod-detail-view').style.display='none';}
+  const views={oc:['oc-list-view','oc-detail-view'],prod:['prod-list-view','prod-detail-view'],muest:['muest-list-view','muest-detail-view']};
+  if(views[t]){document.getElementById(views[t][0]).style.display='';document.getElementById(views[t][1]).style.display='none';}
 }
 
-// ── OC ──
+// ================================================================
+// OC
+// ================================================================
 function renderOCEmpty(){
   document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Ingresa un término de búsqueda</h3><p>Sucursal, orden de compra, orden de venta, factura, código o modelo.</p></div>';
 }
 
 function searchOC(q){
   if(!q.trim()){renderOCEmpty();return;}
-  if(!DB.ventas.length){document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Presiona ⟳ Sincronizar para cargar los datos.</p></div>';return;}
+  if(!DB.ventas.length){document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Presiona ⟳ Sincronizar.</p></div>';return;}
   const nq=norm(q);
   const fields=['Sucursal','Orden de Compra','Orden de Venta','N° Factura','Codigo','Modelo'];
   const matches=DB.ventas.filter(r=>fields.some(f=>norm(r[f]).includes(nq)));
   const groups={};
   matches.forEach(r=>{const oc=String(r['Orden de Compra']||'(sin OC)');if(!groups[oc])groups[oc]={rows:[],sucursal:r['Sucursal'],oc};groups[oc].rows.push(r);});
   const keys=Object.keys(groups);
-  if(!keys.length){document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin resultados</h3><p>No se encontraron coincidencias.</p></div>';return;}
+  if(!keys.length){document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin resultados</h3></div>';return;}
   OC_INDEX=keys;
   let html='<div class="results-list">';
   keys.forEach((oc,idx)=>{
@@ -413,8 +753,7 @@ function searchOC(q){
         <div><div class="result-label">Líneas</div><div class="result-value">${g.rows.length}</div></div>
       </div><span class="result-arrow">›</span></div>`;
   });
-  html+='</div>';
-  document.getElementById('oc-results').innerHTML=html;
+  document.getElementById('oc-results').innerHTML=html+'</div>';
 }
 
 function showOCDetail(idx){
@@ -477,26 +816,27 @@ function buildOCTable(rows){
     '</tbody></table></div>';
 }
 
-// ── PRODUCTOS ──
-function searchProducts(q){
-  const el=document.getElementById('prod-results');
-  if(!q.trim()){el.innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.</p></div>';return;}
-  if(!DB.base.length){el.innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Presiona ⟳ Sincronizar.</p></div>';return;}
+// ================================================================
+// PRODUCTOS
+// ================================================================
+function buildProdResults(q, containerId, indexVar, detailFn){
+  const el=document.getElementById(containerId);
+  if(!q.trim()){el.innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.</p></div>';return [];}
+  if(!DB.base.length){el.innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Presiona ⟳ Sincronizar.</p></div>';return [];}
   const words=norm(q).split(/\s+/).filter(Boolean);
   const fields=['Modelo','Codigo','Cod APRO','Color','H/M'];
   const matches=DB.base.filter(r=>{const hay=fields.map(f=>norm(r[f])).join(' ');return words.every(w=>hay.includes(w));});
   const mm={};
   matches.forEach(r=>{const m=String(r['Modelo']||'(sin modelo)');if(!mm[m])mm[m]=[];mm[m].push(r);});
   const mkeys=Object.keys(mm);
-  if(!mkeys.length){el.innerHTML='<div class="no-data"><h3>Sin resultados</h3><p>Prueba con otros términos.</p></div>';return;}
-  PROD_INDEX=mkeys;
+  if(!mkeys.length){el.innerHTML='<div class="no-data"><h3>Sin resultados</h3></div>';return [];}
   let html='<div class="results-list">';
   mkeys.forEach((m,idx)=>{
     const rows=mm[m];
     const colors=[...new Set(rows.map(r=>String(r['Color']||'')).filter(Boolean))];
     const hm=[...new Set(rows.map(r=>String(r['H/M']||'')).filter(Boolean))];
     const precio=rows[0]&&rows[0]['Precio APRO'];
-    html+=`<div class="product-result" onclick="showProductDetail(${idx})">
+    html+=`<div class="product-result" onclick="${detailFn}(${idx})">
       <div class="product-result-inner">
         <div>
           <div class="product-model">${esc(m)}</div>
@@ -513,14 +853,14 @@ function searchProducts(q){
       </div></div>`;
   });
   html+='</div>'; el.innerHTML=html;
+  return mkeys;
 }
 
-function showProductDetail(idx){
-  const modelo=PROD_INDEX[idx]; if(!modelo) return;
+function searchProducts(q){ PROD_INDEX=buildProdResults(q,'prod-results','PROD_INDEX','showProductDetail'); }
+function searchMuestras(q){ MUEST_INDEX=buildProdResults(q,'muest-results','MUEST_INDEX','showMuestraDetail'); }
+
+function buildProductDetailHTML(modelo, withCheckbox){
   const rows=DB.base.filter(r=>String(r['Modelo']||'(sin modelo)')===modelo);
-  document.getElementById('prod-list-view').style.display='none';
-  document.getElementById('prod-detail-view').style.display='block';
-  document.getElementById('prod-detail-title').textContent=modelo;
   const precio=rows[0]&&rows[0]['Precio APRO'];
   const hmMap={};
   rows.forEach(r=>{const hm=String(r['H/M']||'Sin género'),col=String(r['Color']||'Sin color');if(!hmMap[hm])hmMap[hm]={};if(!hmMap[hm][col])hmMap[hm][col]=[];hmMap[hm][col].push(r);});
@@ -535,6 +875,7 @@ function showProductDetail(idx){
       html+=`<div class="color-section"><div class="color-title">${esc(col)}</div>
         <div class="detail-table-wrap"><table class="detail-table">
           <thead><tr>
+            ${withCheckbox?'<th rowspan="2" style="width:40px"></th>':''}
             <th rowspan="2">Descripción</th><th rowspan="2">Código</th><th rowspan="2">Cód APRO</th>
             <th rowspan="2">EAN13</th><th rowspan="2" style="text-align:center">Cant x Caja</th>
             <th colspan="5" style="text-align:center;background:var(--surface2);color:var(--warm-gray)">Stock</th>
@@ -543,8 +884,12 @@ function showProductDetail(idx){
             <th style="text-align:right">Pudahuel</th><th style="text-align:right">Presencial</th>
             <th style="text-align:right">Antofagasta</th><th style="text-align:right">Res. APRO</th><th style="text-align:right">Recepción</th>
             <th style="background:rgba(200,169,122,0.06)">Fecha</th><th style="background:rgba(200,169,122,0.06);text-align:right">Cant. Disp.</th>
-          </tr></thead><tbody>`+
-        hmMap[hm][col].map(r=>`<tr>
+          </tr></thead><tbody>`;
+      hmMap[hm][col].forEach((r,ri)=>{
+        const artKey=String(r['Codigo']||ri);
+        const isInCart=CART.some(c=>c.codigo===artKey);
+        html+=`<tr>
+          ${withCheckbox?`<td style="text-align:center"><input type="checkbox" class="muestra-check" data-art="${esc(String(r['Descripcion']||r['Descripción']||''))}" data-cod="${esc(artKey)}" ${isInCart?'checked':''} onchange="toggleCart(this)"></td>`:''}
           <td>${esc(String(r['Descripcion']||r['Descripción']||''))}</td>
           <td style="font-family:monospace;font-size:12px">${esc(String(r['Codigo']||''))}</td>
           <td style="font-family:monospace;font-size:12px">${esc(String(r['Cod APRO']||''))}</td>
@@ -555,15 +900,156 @@ function showProductDetail(idx){
           <td style="text-align:right">${fmtS(r['Recepción']||r['Recepcion']||'')}</td>
           <td style="background:rgba(200,169,122,0.04);font-size:12px">${fmtF(r['Fecha Prox Llegada'])}</td>
           <td style="background:rgba(200,169,122,0.04);text-align:right">${esc(String(r['Ctd prox llegada (disponible)']??r['Ctd prox llegada (Disponible)']??'—'))}</td>
-        </tr>`).join('')+
-        '</tbody></table></div></div>';
+        </tr>`;
+      });
+      html+='</tbody></table></div></div>';
     });
   });
-  html+='</div></div>';
-  document.getElementById('prod-detail-content').innerHTML=html;
+  return html+'</div></div>';
 }
 
-// ── ADMIN ──
+function showProductDetail(idx){
+  const modelo=PROD_INDEX[idx]; if(!modelo) return;
+  document.getElementById('prod-list-view').style.display='none';
+  document.getElementById('prod-detail-view').style.display='block';
+  document.getElementById('prod-detail-title').textContent=modelo;
+  document.getElementById('prod-detail-content').innerHTML=buildProductDetailHTML(modelo,false);
+}
+
+// ================================================================
+// MUESTRAS
+// ================================================================
+function showMuestraDetail(idx){
+  const modelo=MUEST_INDEX[idx]; if(!modelo) return;
+  document.getElementById('muest-list-view').style.display='none';
+  document.getElementById('muest-detail-view').style.display='block';
+  document.getElementById('muest-detail-title').textContent=modelo;
+  document.getElementById('muest-detail-content').innerHTML=buildProductDetailHTML(modelo,true);
+  updateCartBar();
+}
+
+function toggleCart(cb){
+  const art=cb.dataset.art;
+  const cod=cb.dataset.cod;
+  if(cb.checked){
+    if(!CART.some(c=>c.codigo===cod)) CART.push({articulo:art,codigo:cod});
+  } else {
+    CART=CART.filter(c=>c.codigo!==cod);
+  }
+  updateCartBadge();
+  updateCartBar();
+}
+
+function updateCartBadge(){
+  const badge=document.getElementById('cart-badge');
+  if(!badge) return;
+  if(CART.length>0){badge.style.display='inline-flex';badge.textContent=CART.length;}
+  else{badge.style.display='none';}
+}
+
+function updateCartBar(){
+  const bar=document.getElementById('cart-bar');
+  const num=document.getElementById('cart-num');
+  if(!bar) return;
+  if(CART.length>0){bar.style.display='flex';if(num)num.textContent=CART.length;}
+  else{bar.style.display='none';}
+}
+
+function openFinalizar(){
+  if(CART.length===0){showToast('No hay artículos seleccionados',true);return;}
+  // Pre-fill with session data
+  document.getElementById('m-vendedor').value=SESSION.nombre||'';
+  document.getElementById('m-sucursal').value=SESSION.sucursal||'';
+  // Show cart summary
+  let resumen='<table style="width:100%;font-size:13px;border-collapse:collapse">';
+  resumen+='<tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--warm-gray)">Artículo</th><th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--warm-gray)">Código</th></tr>';
+  CART.forEach(c=>{resumen+=`<tr><td style="padding:4px 8px;border-bottom:1px solid var(--border)">${esc(c.articulo)}</td><td style="padding:4px 8px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px">${esc(c.codigo)}</td></tr>`;});
+  resumen+='</table>';
+  document.getElementById('muestra-resumen').innerHTML=resumen;
+  document.getElementById('muestra-error').style.display='none';
+  openModal('modal-muestra');
+}
+
+async function doEnviarMuestra(){
+  const vendedor=document.getElementById('m-vendedor').value.trim();
+  const sucursal=document.getElementById('m-sucursal').value.trim();
+  const empresa=document.getElementById('m-empresa').value.trim();
+  const telefono=document.getElementById('m-telefono').value.trim();
+  const direccion=document.getElementById('m-direccion').value.trim();
+  const devolucion=document.getElementById('m-devolucion').checked?'Sí':'No';
+  const err=document.getElementById('muestra-error'); err.style.display='none';
+  if(!vendedor||!empresa||!telefono||!direccion){err.textContent='Por favor completa todos los campos';err.style.display='block';return;}
+
+  const fecha=new Date().toLocaleDateString('es-CL');
+  const articulosList=CART.map(c=>c.articulo).join(' | ');
+  const codigosList=CART.map(c=>c.codigo).join(' | ');
+
+  // Build email table
+  let tablaHTML='<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:13px">';
+  tablaHTML+='<tr style="background:#0E0E0E;color:#C8A97A"><th>Artículo</th><th>Código</th></tr>';
+  CART.forEach(c=>{tablaHTML+=`<tr><td>${c.articulo}</td><td>${c.codigo}</td></tr>`;});
+  tablaHTML+='</table>';
+
+  const mailBody=`Estimado ${vendedor}:<br><br>
+Usted ha solicitado una muestra Vicsa Safety Comercial Limitada mediante su KAM Jorge Silva para la empresa <strong>${empresa}</strong> con el siguiente detalle:<br><br>
+${tablaHTML}<br>
+<strong>Datos de envío:</strong><br>
+Sucursal: ${sucursal}<br>
+Teléfono: ${telefono}<br>
+Dirección: ${direccion}<br>
+Con devolución: ${devolucion}<br>
+Fecha: ${fecha}`;
+
+  showLoading('Enviando solicitud...','Procesando correo');
+
+  if(EJS.publicKey==='TU_PUBLIC_KEY'){
+    hideLoading();
+    closeModal('modal-muestra');
+    CART=[]; updateCartBadge(); updateCartBar();
+    showToast('✓ Muestra registrada (configura EmailJS para enviar correos)');
+    return;
+  }
+
+  try{
+    // Send to user
+    await emailjs.send(EJS.serviceId, EJS.templateId, {
+      to_email: SESSION.mail,
+      to_name: vendedor,
+      subject: `Solicitud de Muestra — ${empresa}`,
+      message: mailBody
+    });
+    // Send to KAM
+    await emailjs.send(EJS.serviceId, EJS.templateId, {
+      to_email: KAM_MAIL,
+      to_name: 'Jorge Silva',
+      subject: `[APRO] Solicitud de Muestra — ${empresa} — ${vendedor}`,
+      message: mailBody
+    });
+    // Send to supervisor if exists
+    if(SESSION.supervisor){
+      await emailjs.send(EJS.serviceId, EJS.templateId, {
+        to_email: SESSION.supervisor,
+        to_name: 'Supervisor',
+        subject: `[APRO] Solicitud de Muestra — ${empresa} — ${vendedor}`,
+        message: mailBody
+      });
+    }
+    // Write to sheet
+    await writeMuestraToSheet({fecha,nombre:vendedor,sucursal,empresa,telefono,direccion,devolucion,articulos:articulosList,codigos:codigosList});
+    hideLoading();
+    closeModal('modal-muestra');
+    CART=[]; updateCartBadge(); updateCartBar();
+    showToast('✓ Solicitud enviada correctamente');
+  }catch(e){
+    hideLoading();
+    err.textContent='Error al enviar: '+(e.text||e.message||JSON.stringify(e));
+    err.style.display='block';
+  }
+}
+
+// ================================================================
+// ADMIN
+// ================================================================
 function renderAdminUsers(filter=''){
   const list=document.getElementById('admin-users-list'); if(!list) return;
   const nf=norm(filter);
@@ -581,23 +1067,64 @@ function renderAdminUsers(filter=''){
       </label>
     </div>`).join('');
 }
-function newUser(){editingUserId=null;document.getElementById('form-title').textContent='Nuevo usuario';['f-nombre','f-sucursal','f-mail','f-pass'].forEach(id=>document.getElementById(id).value='');document.getElementById('f-rol').value='user';document.getElementById('btn-delete').style.display='none';renderAdminUsers(document.getElementById('admin-search').value);}
-function editUser(id){const u=USERS.find(x=>x.id===id);if(!u)return;editingUserId=id;document.getElementById('form-title').textContent='Editar usuario';document.getElementById('f-nombre').value=u.nombre;document.getElementById('f-sucursal').value=u.sucursal||'';document.getElementById('f-mail').value=u.mail;document.getElementById('f-pass').value=u.pass;document.getElementById('f-rol').value=u.rol;document.getElementById('btn-delete').style.display='';renderAdminUsers(document.getElementById('admin-search').value);}
-function saveUser(){const nombre=document.getElementById('f-nombre').value.trim();const sucursal=document.getElementById('f-sucursal').value.trim();const mail=document.getElementById('f-mail').value.trim();const pass=document.getElementById('f-pass').value;const rol=document.getElementById('f-rol').value;if(!nombre||!mail||!pass){showToast('Nombre, correo y contraseña son requeridos',true);return;}if(editingUserId){Object.assign(USERS.find(x=>x.id===editingUserId),{nombre,sucursal,mail,pass,rol});}else{USERS.push({id:Date.now(),nombre,sucursal,mail,pass,rol,activo:true});}saveUsers();newUser();showToast('Usuario guardado');}
+
+function newUser(){
+  editingUserId=null;
+  document.getElementById('form-title').textContent='Nuevo usuario';
+  ['f-nombre','f-sucursal','f-mail','f-supervisor','f-pass'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-rol').value='user';
+  document.getElementById('btn-delete').style.display='none';
+  renderAdminUsers(document.getElementById('admin-search').value);
+}
+function editUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u) return;
+  editingUserId=id;
+  document.getElementById('form-title').textContent='Editar usuario';
+  document.getElementById('f-nombre').value=u.nombre;
+  document.getElementById('f-sucursal').value=u.sucursal||'';
+  document.getElementById('f-mail').value=u.mail;
+  document.getElementById('f-supervisor').value=u.supervisor||'';
+  document.getElementById('f-pass').value=u.pass;
+  document.getElementById('f-rol').value=u.rol;
+  document.getElementById('btn-delete').style.display='';
+  renderAdminUsers(document.getElementById('admin-search').value);
+}
+function saveUser(){
+  const nombre=document.getElementById('f-nombre').value.trim();
+  const sucursal=document.getElementById('f-sucursal').value.trim();
+  const mail=document.getElementById('f-mail').value.trim();
+  const supervisor=document.getElementById('f-supervisor').value.trim();
+  const pass=document.getElementById('f-pass').value;
+  const rol=document.getElementById('f-rol').value;
+  if(!nombre||!mail||!pass){showToast('Nombre, correo y contraseña son requeridos',true);return;}
+  if(editingUserId){
+    Object.assign(USERS.find(x=>x.id===editingUserId),{nombre,sucursal,mail,supervisor,pass,rol});
+  } else {
+    USERS.push({id:Date.now(),nombre,sucursal,mail,supervisor,pass,mustChange:true,rol,activo:true});
+  }
+  saveUsers(); newUser(); showToast('Usuario guardado — deberá cambiar su contraseña al primer ingreso');
+}
 function cancelUser(){newUser();}
-function deleteUser(){if(!editingUserId)return;if(!confirm('¿Eliminar este usuario?'))return;USERS=USERS.filter(x=>x.id!==editingUserId);saveUsers();newUser();showToast('Usuario eliminado');}
+function deleteUser(){
+  if(!editingUserId) return;
+  if(!confirm('¿Eliminar este usuario?')) return;
+  USERS=USERS.filter(x=>x.id!==editingUserId);
+  saveUsers(); newUser(); showToast('Usuario eliminado');
+}
 function toggleUser(id,val){const u=USERS.find(x=>x.id===id);if(u){u.activo=val;saveUsers();}}
 
-// ── HELPERS ──
+// ================================================================
+// HELPERS
+// ================================================================
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtS(v){if(v===''||v===null||v===undefined)return '<span class="muted">—</span>';const s=String(v).trim();const neg=s.startsWith('(')||s.startsWith('-');const n=parseFloat(s.replace(/[()]/g,''));if(!isNaN(n)&&(n<0||neg))return `<span class="neg">-${Math.abs(n)}</span>`;return esc(s);}
 function fmtN(v){if(v===''||v===null||v===undefined)return '<span class="muted">—</span>';const n=parseFloat(v);if(!isNaN(n)&&n<0)return `<span class="neg">${n}</span>`;return esc(String(v));}
 function fmtF(v){if(!v||v==='')return '<span class="muted">—</span>';if(v instanceof Date)return esc(v.toLocaleDateString('es-CL'));const s=String(v);if(s.match(/^\d{4}-\d{2}-\d{2}/))return esc(new Date(s).toLocaleDateString('es-CL'));return esc(s);}
 function fmtP(v){if(!v)return '';const n=parseFloat(String(v).replace(/[^0-9.]/g,''));if(isNaN(n))return esc(String(v));return '$'+n.toLocaleString('es-CL');}
-function showLoading(msg,sub){document.getElementById('loading-msg').textContent=msg||'Cargando...';document.getElementById('loading-sub').textContent=sub||'';document.getElementById('loading-overlay').style.display='flex';}
+function showLoading(msg,sub){document.getElementById('loading-msg').textContent=msg;document.getElementById('loading-sub').textContent=sub||'';document.getElementById('loading-overlay').style.display='flex';}
 function hideLoading(){document.getElementById('loading-overlay').style.display='none';}
-function showToast(msg,isError=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isError?' error':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+function showToast(msg,isError=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isError?' error':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000);}
 </script>
 </body>
 </html>

@@ -419,7 +419,7 @@ async function handleMSCallback(code, state){
     window.history.replaceState({}, document.title, window.location.pathname);
     hideLoading();
     startApp();
-    await syncFromOneDrive();
+    showToast('Sesión iniciada con Microsoft · Presiona ⟳ Sincronizar para cargar tu Excel');
   } catch(e){
     hideLoading();
     showToast('Error al autenticar: ' + e.message, true);
@@ -448,7 +448,7 @@ async function refreshMSToken(){
 async function msGet(url){
   let r = await fetch(url, {headers:{Authorization:'Bearer '+MS_TOKEN}});
   if(r.status === 401){ const ok = await refreshMSToken(); if(ok) r = await fetch(url,{headers:{Authorization:'Bearer '+MS_TOKEN}}); else throw new Error('Sesión de Microsoft expirada. Por favor reconecta.'); }
-  if(!r.ok) throw new Error('Graph API error: ' + r.status);
+  if(!r.ok){ let errDetail=''; try{ const ej=await r.clone().json(); errDetail=ej.error&&ej.error.message?': '+ej.error.message:''; }catch(e){} throw new Error('Graph API error '+r.status+errDetail); }
   return r.json();
 }
 

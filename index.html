@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APRO Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --cream:#FAF8F5;--obsidian:#0E0E0E;--charcoal:#1C1C1C;--warm-gray:#6B6560;
+  --border:#E8E4DF;--accent:#C8A97A;--accent-dark:#A07840;--danger:#C0392B;
+  --success:#2E7D52;--surface:#FFFFFF;--surface2:#F5F2EE;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--obsidian);min-height:100vh;font-size:14px}
+h1,h2,h3,h4{font-family:'Cormorant Garamond',serif}
+
+/* ===== LOADING ===== */
+#loading-overlay{position:fixed;inset:0;background:rgba(14,14,14,0.75);display:none;align-items:center;justify-content:center;z-index:2000}
+.loading-box{background:var(--surface);padding:2rem 3rem;text-align:center;border-top:3px solid var(--accent)}
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 1rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-msg{font-size:1rem;font-weight:500;margin-bottom:4px}
+#loading-sub{font-size:12px;color:var(--warm-gray)}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--obsidian);color:#fff;padding:0.8rem 1.5rem;font-size:13px;z-index:9999;transform:translateY(100px);opacity:0;transition:all 0.3s;border-left:3px solid var(--accent);max-width:360px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.error{border-left-color:var(--danger)}
+
+/* ===== AUTH ===== */
+#auth-screen{position:fixed;inset:0;background:var(--obsidian);display:flex;align-items:center;justify-content:center;z-index:1000}
+.auth-box{background:var(--surface);padding:3rem 2.5rem;width:420px;border-top:3px solid var(--accent)}
+.auth-logo{font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:300;letter-spacing:0.2em;color:var(--obsidian);margin-bottom:4px}
+.auth-logo span{color:var(--accent)}
+.auth-sub{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:2rem}
+.auth-tabs{display:flex;margin-bottom:2rem;border-bottom:1px solid var(--border)}
+.auth-tab{flex:1;padding:0.6rem;background:none;border:none;cursor:pointer;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--warm-gray);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:'DM Sans',sans-serif;transition:color 0.2s}
+.auth-tab.active{color:var(--obsidian);border-bottom-color:var(--accent)}
+.auth-panel{display:none}.auth-panel.active{display:block}
+.auth-box input{width:100%;border:none;border-bottom:1px solid var(--border);padding:0.7rem 0;font-family:'DM Sans',sans-serif;font-size:14px;background:transparent;color:var(--obsidian);outline:none;margin-bottom:1.5rem;transition:border-color 0.2s}
+.auth-box input:focus{border-bottom-color:var(--accent)}
+.auth-box input::placeholder{color:var(--warm-gray)}
+.btn-primary{width:100%;background:var(--obsidian);color:#fff;border:none;padding:0.9rem;font-family:'DM Sans',sans-serif;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;margin-bottom:0.8rem}
+.btn-primary:hover{background:var(--charcoal)}
+.btn-ms{width:100%;background:#fff;color:#333;border:1px solid #ddd;padding:0.85rem;font-family:'DM Sans',sans-serif;font-size:13px;letter-spacing:0.05em;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:0.7rem}
+.btn-ms:hover{background:#f5f5f5;border-color:#bbb}
+.auth-divider{text-align:center;color:var(--warm-gray);font-size:12px;margin:1rem 0;position:relative}
+.auth-divider::before,.auth-divider::after{content:'';position:absolute;top:50%;width:42%;height:1px;background:var(--border)}
+.auth-divider::before{left:0}.auth-divider::after{right:0}
+.auth-error{color:var(--danger);font-size:12px;margin-bottom:1rem;display:none;padding:0.5rem;background:rgba(192,57,43,0.06);border-left:2px solid var(--danger)}
+.otp-info{font-size:12px;color:var(--warm-gray);margin-bottom:1.2rem;line-height:1.6}
+
+/* ===== APP LAYOUT ===== */
+#app{display:none;min-height:100vh;flex-direction:column}
+header{background:var(--obsidian);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:56px;position:sticky;top:0;z-index:100}
+.header-logo{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;letter-spacing:0.2em}
+.header-logo span{color:var(--accent)}
+.header-nav{display:flex}
+.nav-btn{background:none;border:none;color:rgba(255,255,255,0.55);padding:0 1.2rem;height:56px;cursor:pointer;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;font-family:'DM Sans',sans-serif;transition:color 0.2s;border-bottom:2px solid transparent}
+.nav-btn:hover,.nav-btn.active{color:#fff;border-bottom-color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:0.8rem}
+.sync-status{font-size:11px;color:rgba(255,255,255,0.35)}
+.sync-btn{background:none;border:1px solid rgba(200,169,122,0.4);color:var(--accent);padding:0.3rem 0.9rem;cursor:pointer;font-size:11px;letter-spacing:0.08em;font-family:'DM Sans',sans-serif;transition:all 0.2s;white-space:nowrap}
+.sync-btn:hover{background:var(--accent);color:#fff}
+.sync-btn:disabled{opacity:0.4;cursor:not-allowed}
+.user-badge{font-size:12px;color:rgba(255,255,255,0.55)}
+.logout-btn{background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.55);padding:0.3rem 0.8rem;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+.logout-btn:hover{border-color:var(--accent);color:var(--accent)}
+main{flex:1;padding:2rem}
+.section{display:none}.section.active{display:block}
+
+/* ===== SEARCH HEADER ===== */
+.search-header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}
+.search-title{font-size:1.8rem;font-weight:400;color:var(--obsidian);flex:0 0 auto}
+.search-wrap{flex:1;position:relative;min-width:200px;max-width:520px}
+.search-input{width:100%;border:none;border-bottom:2px solid var(--obsidian);background:transparent;padding:0.6rem 2.5rem 0.6rem 0;font-size:15px;font-family:'DM Sans',sans-serif;color:var(--obsidian);outline:none;transition:border-color 0.2s}
+.search-input:focus{border-bottom-color:var(--accent)}
+.search-input::placeholder{color:var(--warm-gray)}
+.search-icon{position:absolute;right:0;top:50%;transform:translateY(-50%);color:var(--warm-gray);font-size:18px;pointer-events:none}
+.upload-btn{background:none;border:1px solid var(--accent);color:var(--accent-dark);padding:0.5rem 1rem;cursor:pointer;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;font-family:'DM Sans',sans-serif;transition:all 0.2s;white-space:nowrap}
+.upload-btn:hover{background:var(--accent);color:#fff}
+#file-input{display:none}
+
+/* ===== RESULTS LIST ===== */
+.results-list{display:flex;flex-direction:column}
+.result-item{border:1px solid var(--border);border-bottom:none;padding:1rem 1.5rem;cursor:pointer;background:var(--surface);display:flex;align-items:center;justify-content:space-between;transition:background 0.15s}
+.result-item:first-child{border-top:2px solid var(--accent)}
+.result-item:last-child{border-bottom:1px solid var(--border)}
+.result-item:hover{background:var(--surface2)}
+.result-label{font-size:11px;color:var(--warm-gray);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px}
+.result-value{font-size:15px;font-weight:500}
+.result-meta{display:flex;gap:2rem;flex-wrap:wrap}
+.result-arrow{color:var(--accent);font-size:20px;flex-shrink:0}
+.badge{display:inline-block;padding:2px 8px;font-size:11px;letter-spacing:0.05em;background:var(--surface2);border:1px solid var(--border);color:var(--warm-gray)}
+.badge-accent{background:rgba(200,169,122,0.15);border-color:var(--accent);color:var(--accent-dark)}
+.no-data{text-align:center;padding:4rem 2rem;color:var(--warm-gray)}
+.no-data h3{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:400;margin-bottom:0.5rem}
+.no-data p{font-size:13px;line-height:1.6;margin-top:0.3rem}
+
+/* ===== DETAIL VIEW ===== */
+.detail-view{display:none}
+.detail-header{display:flex;align-items:center;gap:1.5rem;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border)}
+.back-btn{background:none;border:none;cursor:pointer;color:var(--warm-gray);font-size:12px;letter-spacing:0.1em;text-transform:uppercase;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:0.5rem;padding:0;flex-shrink:0;transition:color 0.2s}
+.back-btn:hover{color:var(--obsidian)}
+.detail-title{font-size:1.7rem;font-weight:400}
+.detail-subtitle{font-size:13px;color:var(--warm-gray);margin-top:3px}
+
+/* ===== FACTURA CARDS ===== */
+.factura-card{margin-bottom:1.5rem;border:1px solid var(--border);background:var(--surface)}
+.factura-head{background:var(--obsidian);color:#fff;padding:1rem 1.5rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap}
+.fh-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:3px}
+.fh-value{font-size:14px;font-weight:500}
+.factura-num{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:500;letter-spacing:0.05em;color:var(--accent);margin-right:0.5rem;white-space:nowrap}
+.sinfact-head{background:var(--warm-gray);color:#fff;padding:1rem 1.5rem;display:flex;align-items:center;gap:2rem;flex-wrap:wrap}
+
+/* ===== TABLES ===== */
+.detail-table-wrap{overflow-x:auto}
+.detail-table{width:100%;border-collapse:collapse;font-size:13px}
+.detail-table th{padding:0.6rem 1rem;background:var(--surface2);text-align:left;font-weight:500;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--warm-gray);border-bottom:1px solid var(--border);white-space:nowrap}
+.detail-table td{padding:0.7rem 1rem;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+.detail-table tr:last-child td{border-bottom:none}
+.detail-table tr:hover td{background:var(--surface2)}
+.neg{color:var(--danger);font-weight:500}
+.muted{color:var(--warm-gray)}
+
+/* ===== PRODUCTS ===== */
+.product-result{border:1px solid var(--border);border-bottom:none;background:var(--surface);cursor:pointer;transition:background 0.15s}
+.product-result:first-child{border-top:2px solid var(--accent)}
+.product-result:last-child{border-bottom:1px solid var(--border)}
+.product-result-inner{padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.product-result:hover{background:var(--surface2)}
+.product-model{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:500}
+.product-meta-tags{display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:6px}
+.product-detail-head{padding:1.5rem;background:var(--obsidian);color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.product-detail-model{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:400;letter-spacing:0.05em}
+.product-price{font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:var(--accent);font-weight:500}
+.price-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:4px}
+.genero-section{border-left:3px solid var(--accent);margin:1.5rem 0 0.8rem;padding-left:1rem}
+.genero-label{font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:2px}
+.genero-title{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500}
+.color-section{padding-left:1rem;margin-bottom:1.5rem}
+.color-title{font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:0.6rem;padding:0.4rem 0;border-bottom:1px solid var(--border)}
+
+/* ===== ADMIN ===== */
+.admin-layout{display:grid;grid-template-columns:1fr 340px;gap:2rem;align-items:start}
+.admin-users-list{background:var(--surface);border:1px solid var(--border)}
+.admin-form{background:var(--surface);border:1px solid var(--border);padding:1.5rem;position:sticky;top:72px}
+.admin-form h3{font-size:1.2rem;font-weight:400;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.form-field{margin-bottom:1.2rem}
+.form-label{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:6px;display:block}
+.form-input{width:100%;border:none;border-bottom:1px solid var(--border);padding:0.5rem 0;font-family:'DM Sans',sans-serif;font-size:14px;background:transparent;color:var(--obsidian);outline:none;transition:border-color 0.2s}
+.form-input:focus{border-bottom-color:var(--accent)}
+.form-actions{display:flex;gap:0.8rem;margin-top:1.5rem;flex-wrap:wrap}
+.btn-sm{padding:0.5rem 1.2rem;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:'DM Sans',sans-serif;border:1px solid var(--obsidian);background:var(--obsidian);color:#fff;transition:all 0.2s}
+.btn-sm:hover{background:var(--charcoal)}
+.btn-sm-outline{background:transparent;color:var(--obsidian)}
+.btn-sm-outline:hover{background:var(--surface2)}
+.btn-danger{border-color:var(--danger);background:var(--danger);color:#fff}
+.btn-danger:hover{background:#a93226}
+.user-row{padding:0.9rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s}
+.user-row:last-child{border-bottom:none}
+.user-row:hover{background:var(--surface2)}
+.user-row.selected{background:rgba(200,169,122,0.08);border-left:3px solid var(--accent)}
+.user-name{font-weight:500;font-size:14px}
+.user-meta{font-size:12px;color:var(--warm-gray);margin-top:2px}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.status-dot.active{background:var(--success)}
+.status-dot.inactive{background:#ccc}
+.toggle-switch{position:relative;width:36px;height:20px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#ddd;border-radius:20px;transition:0.2s}
+.toggle-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.2s}
+.toggle-switch input:checked+.toggle-slider{background:var(--success)}
+.toggle-switch input:checked+.toggle-slider:before{transform:translateX(16px)}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay" style="display:none">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div id="loading-msg">Cargando...</div>
+    <div id="loading-sub"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- ===== AUTH ===== -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">A<span>P</span>RO</div>
+    <div class="auth-sub">Portal de Ventas</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Ingresar</button>
+      <button class="auth-tab" onclick="switchAuthTab('otp')">Código OTP</button>
+    </div>
+    <div class="auth-panel active" id="panel-login">
+      <div class="auth-error" id="login-error"></div>
+      <input type="text" id="login-user" placeholder="Usuario o correo" autocomplete="username">
+      <input type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password">
+      <button class="btn-primary" onclick="doLogin()">Ingresar</button>
+      <div class="auth-divider">o bien</div>
+      <button class="btn-ms" onclick="loginWithMicrosoft()">
+        <svg width="18" height="18" viewBox="0 0 21 21" fill="none">
+          <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+          <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+          <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+          <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+        </svg>
+        Continuar con Microsoft
+      </button>
+    </div>
+    <div class="auth-panel" id="panel-otp">
+      <p class="otp-info">Si es tu primer acceso desde este dispositivo, ingresa el código de 6 dígitos enviado a tu correo registrado.</p>
+      <div class="auth-error" id="otp-error"></div>
+      <input type="text" id="otp-user" placeholder="Usuario o correo">
+      <input type="text" id="otp-code" placeholder="Código de 6 dígitos" maxlength="6">
+      <button class="btn-primary" onclick="doOTP()">Verificar Código</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" style="display:none;flex-direction:column;min-height:100vh">
+  <header>
+    <div class="header-logo">A<span>P</span>RO</div>
+    <nav class="header-nav">
+      <button class="nav-btn active" onclick="showSection('oc')" id="nav-oc">Buscar OC</button>
+      <button class="nav-btn" onclick="showSection('productos')" id="nav-productos">Productos</button>
+      <button class="nav-btn" onclick="showSection('admin')" id="nav-admin" style="display:none">Mantenedor</button>
+    </nav>
+    <div class="header-right">
+      <span class="sync-status" id="sync-status"></span>
+      <button class="sync-btn" id="sync-btn" onclick="syncFromOneDrive()">⟳ Sincronizar</button>
+      <span class="user-badge" id="user-badge"></span>
+      <button class="logout-btn" onclick="doLogout()">Salir</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- BUSCAR OC -->
+    <div class="section active" id="section-oc">
+      <div id="oc-list-view">
+        <div class="search-header">
+          <div class="search-title">Buscar OC</div>
+          <div class="search-wrap">
+            <input class="search-input" id="oc-search" placeholder="Sucursal, OC, OV, Factura, Código, Modelo..." oninput="searchOC(this.value)">
+            <span class="search-icon">⌕</span>
+          </div>
+          <label for="file-input" class="upload-btn">↑ Cargar Excel</label>
+          <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(this)">
+        </div>
+        <div id="oc-results"></div>
+      </div>
+      <div class="detail-view" id="oc-detail-view">
+        <div class="detail-header">
+          <button class="back-btn" onclick="backToList('oc')">← Volver</button>
+          <div>
+            <div class="detail-title" id="oc-detail-title"></div>
+            <div class="detail-subtitle" id="oc-detail-sub"></div>
+          </div>
+        </div>
+        <div id="oc-detail-content"></div>
+      </div>
+    </div>
+
+    <!-- PRODUCTOS -->
+    <div class="section" id="section-productos">
+      <div id="prod-list-view">
+        <div class="search-header">
+          <div class="search-title">Productos</div>
+          <div class="search-wrap">
+            <input class="search-input" id="prod-search" placeholder="Modelo, Código, Color, Género..." oninput="searchProducts(this.value)">
+            <span class="search-icon">⌕</span>
+          </div>
+        </div>
+        <div id="prod-results"></div>
+      </div>
+      <div class="detail-view" id="prod-detail-view">
+        <div class="detail-header">
+          <button class="back-btn" onclick="backToList('prod')">← Volver</button>
+          <div><div class="detail-title" id="prod-detail-title"></div></div>
+        </div>
+        <div id="prod-detail-content"></div>
+      </div>
+    </div>
+
+    <!-- MANTENEDOR -->
+    <div class="section" id="section-admin">
+      <div class="search-header">
+        <div class="search-title">Mantenedor de Usuarios</div>
+        <div class="search-wrap">
+          <input class="search-input" id="admin-search" placeholder="Buscar por nombre, sucursal, mail..." oninput="searchUsers(this.value)">
+          <span class="search-icon">⌕</span>
+        </div>
+        <button class="upload-btn" onclick="newUser()">+ Nuevo Usuario</button>
+      </div>
+      <div class="admin-layout">
+        <div class="admin-users-list" id="admin-users-list"></div>
+        <div class="admin-form">
+          <h3 id="form-title">Nuevo usuario</h3>
+          <div class="form-field"><label class="form-label">Nombre</label><input class="form-input" id="f-nombre" placeholder="Nombre completo"></div>
+          <div class="form-field"><label class="form-label">Sucursal</label><input class="form-input" id="f-sucursal" placeholder="Sucursal"></div>
+          <div class="form-field"><label class="form-label">Correo</label><input class="form-input" id="f-mail" type="email" placeholder="correo@empresa.cl"></div>
+          <div class="form-field"><label class="form-label">Contraseña</label><input class="form-input" id="f-pass" type="password" placeholder="Contraseña de acceso"></div>
+          <div class="form-field"><label class="form-label">Rol</label>
+            <select class="form-input" id="f-rol" style="cursor:pointer">
+              <option value="user">Usuario</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button class="btn-sm" onclick="saveUser()">Guardar</button>
+            <button class="btn-sm btn-sm-outline" onclick="cancelUser()">Cancelar</button>
+            <button class="btn-sm btn-danger" id="btn-delete" onclick="deleteUser()" style="display:none;margin-left:auto">Eliminar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ================================================================
+// CONFIGURACIÓN MICROSOFT GRAPH
+// ================================================================
+const MS_CONFIG = {
+  clientId: 'eaeab15e-6ff9-41a1-93cc-6b13f3cf11e2',
+  tenantId: 'c7850028-92ef-42b1-83ce-1b21fbf01cfe',
+  // Esta URL se actualizará automáticamente según donde esté alojada la página
+  get redirectUri(){ return window.location.origin + window.location.pathname.replace(/\/$/,'') + (window.location.pathname.endsWith('/')? '' : '/').replace(/\/index\.html$/,'/'); },
+  scopes: ['Files.Read','Files.Read.All','offline_access','openid','profile'],
+  fileName: 'Gestion APRO.xlsx'
+};
+
+// ================================================================
+// ESTADO GLOBAL
+// ================================================================
+let DB = { ventas:[], base:[] };
+let USERS = JSON.parse(localStorage.getItem('apro_users') || '[]');
+let SESSION = JSON.parse(sessionStorage.getItem('apro_session') || 'null');
+let MS_TOKEN = null;
+let editingUserId = null;
+
+if(!USERS.length){
+  USERS = [{id:1, nombre:'Administrador', sucursal:'Central', mail:'admin@apro.cl', pass:'admin123', rol:'admin', activo:true}];
+  saveUsers();
+}
+function saveUsers(){ localStorage.setItem('apro_users', JSON.stringify(USERS)); }
+
+// ================================================================
+// MICROSOFT AUTH — PKCE
+// ================================================================
+function b64url(buf){
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function generatePKCE(){
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const digest   = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return { verifier, challenge: b64url(digest) };
+}
+
+async function loginWithMicrosoft(){
+  const {verifier, challenge} = await generatePKCE();
+  const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
+  sessionStorage.setItem('pkce_verifier', verifier);
+  sessionStorage.setItem('oauth_state', state);
+  const p = new URLSearchParams({
+    client_id: MS_CONFIG.clientId,
+    response_type: 'code',
+    redirect_uri: MS_CONFIG.redirectUri,
+    response_mode: 'query',
+    scope: MS_CONFIG.scopes.join(' '),
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    prompt: 'select_account'
+  });
+  window.location.href = `https://login.microsoftonline.com/${MS_CONFIG.tenantId}/oauth2/v2.0/authorize?${p}`;
+}
+
+async function handleMSCallback(code, state){
+  if(state !== sessionStorage.getItem('oauth_state')){ showToast('Error de seguridad en autenticación', true); return; }
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  showLoading('Autenticando con Microsoft...', 'Verificando credenciales');
+  try {
+    const body = new URLSearchParams({
+      client_id: MS_CONFIG.clientId,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: MS_CONFIG.redirectUri,
+      code_verifier: verifier
+    });
+    const resp = await fetch(`https://login.microsoftonline.com/${MS_CONFIG.tenantId}/oauth2/v2.0/token`,{
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString()
+    });
+    const data = await resp.json();
+    if(data.error) throw new Error(data.error_description || data.error);
+    MS_TOKEN = data.access_token;
+    if(data.refresh_token) localStorage.setItem('apro_ms_refresh', data.refresh_token);
+    sessionStorage.removeItem('pkce_verifier');
+    sessionStorage.removeItem('oauth_state');
+    const profile = await msGet('https://graph.microsoft.com/v1.0/me');
+    const msEmail = profile.mail || profile.userPrincipalName || '';
+    const msName  = profile.displayName || msEmail || 'Usuario Microsoft';
+    const known   = USERS.find(u => u.mail === msEmail);
+    SESSION = {
+      id: known ? known.id : 'ms_'+Date.now(),
+      nombre: known ? known.nombre : msName,
+      rol: known ? known.rol : 'user',
+      sucursal: known ? known.sucursal : 'OneDrive',
+      msAuth: true
+    };
+    sessionStorage.setItem('apro_session', JSON.stringify(SESSION));
+    window.history.replaceState({}, document.title, window.location.pathname);
+    hideLoading();
+    startApp();
+    await syncFromOneDrive();
+  } catch(e){
+    hideLoading();
+    showToast('Error al autenticar: ' + e.message, true);
+  }
+}
+
+async function refreshMSToken(){
+  const rt = localStorage.getItem('apro_ms_refresh');
+  if(!rt) return false;
+  try {
+    const body = new URLSearchParams({
+      client_id: MS_CONFIG.clientId,
+      grant_type: 'refresh_token',
+      refresh_token: rt,
+      scope: MS_CONFIG.scopes.join(' ')
+    });
+    const resp = await fetch(`https://login.microsoftonline.com/${MS_CONFIG.tenantId}/oauth2/v2.0/token`,{
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body.toString()
+    });
+    const data = await resp.json();
+    if(data.access_token){ MS_TOKEN = data.access_token; if(data.refresh_token) localStorage.setItem('apro_ms_refresh', data.refresh_token); return true; }
+  } catch(e){}
+  return false;
+}
+
+async function msGet(url){
+  let r = await fetch(url, {headers:{Authorization:'Bearer '+MS_TOKEN}});
+  if(r.status === 401){ const ok = await refreshMSToken(); if(ok) r = await fetch(url,{headers:{Authorization:'Bearer '+MS_TOKEN}}); else throw new Error('Sesión de Microsoft expirada. Por favor reconecta.'); }
+  if(!r.ok) throw new Error('Graph API error: ' + r.status);
+  return r.json();
+}
+
+// ================================================================
+// SINCRONIZACIÓN ONEDRIVE
+// ================================================================
+async function syncFromOneDrive(){
+  if(!MS_TOKEN){ showToast('Inicia sesión con Microsoft para sincronizar', true); return; }
+  const btn = document.getElementById('sync-btn');
+  if(btn) btn.disabled = true;
+  showLoading('Buscando archivo en OneDrive...', '"' + MS_CONFIG.fileName + '"');
+  try {
+    const search = await msGet(`https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(MS_CONFIG.fileName)}')?$select=id,name,lastModifiedDateTime`);
+    const file = search.value && search.value.find(f => f.name === MS_CONFIG.fileName);
+    if(!file) throw new Error('No se encontró "' + MS_CONFIG.fileName + '" en OneDrive. Verifica que el nombre del archivo sea exactamente ese.');
+    updateLoading('Descargando...', 'Última modificación: ' + new Date(file.lastModifiedDateTime).toLocaleString('es-CL'));
+    const contentResp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${file.id}/content`, {headers:{Authorization:'Bearer '+MS_TOKEN}});
+    if(!contentResp.ok) throw new Error('Error al descargar el archivo (' + contentResp.status + ')');
+    const buf = await contentResp.arrayBuffer();
+    updateLoading('Procesando hojas...', 'Leyendo Base y Ventas');
+    parseExcelBuffer(buf);
+    const hora = new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+    const ss = document.getElementById('sync-status');
+    if(ss) ss.textContent = '✓ ' + hora;
+    showToast('Excel sincronizado · ' + DB.base.length + ' productos · ' + DB.ventas.length + ' líneas de ventas');
+    hideLoading();
+  } catch(e){
+    hideLoading();
+    showToast('Error: ' + e.message, true);
+  }
+  if(btn) btn.disabled = false;
+}
+
+// ================================================================
+// EXCEL PARSER
+// ================================================================
+function parseExcelBuffer(buf){
+  const wb = XLSX.read(buf, {type:'array', cellDates:true});
+  const shB = wb.SheetNames.find(s => norm(s) === 'base');
+  const shV = wb.SheetNames.find(s => norm(s) === 'ventas');
+  if(shB) DB.base   = XLSX.utils.sheet_to_json(wb.Sheets[shB], {defval:''});
+  if(shV) DB.ventas = XLSX.utils.sheet_to_json(wb.Sheets[shV], {defval:''});
+}
+
+function loadExcel(input){
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = e => { parseExcelBuffer(e.target.result); showToast('Excel cargado: ' + DB.base.length + ' productos · ' + DB.ventas.length + ' ventas'); };
+  r.readAsArrayBuffer(f);
+}
+
+// ================================================================
+// AUTH LOCAL
+// ================================================================
+function switchAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', i === (tab==='login'?0:1)));
+  document.querySelectorAll('.auth-panel').forEach((p,i) => p.classList.toggle('active', i === (tab==='login'?0:1)));
+}
+
+function doLogin(){
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  const user = USERS.find(x => x.activo && (x.mail===u || x.nombre===u) && x.pass===p);
+  const err = document.getElementById('login-error');
+  err.style.display='none';
+  if(!user){ err.textContent='Usuario o contraseña incorrectos'; err.style.display='block'; return; }
+  SESSION = {id:user.id, nombre:user.nombre, rol:user.rol, sucursal:user.sucursal};
+  sessionStorage.setItem('apro_session', JSON.stringify(SESSION));
+  startApp();
+}
+
+function doOTP(){
+  const u    = document.getElementById('otp-user').value.trim();
+  const code = document.getElementById('otp-code').value.trim();
+  const err  = document.getElementById('otp-error');
+  err.style.display='none';
+  const stored = localStorage.getItem('apro_otp_' + u);
+  if(!stored){ err.textContent='No hay código activo para este usuario'; err.style.display='block'; return; }
+  const {otp,exp,userId} = JSON.parse(stored);
+  if(Date.now()>exp || otp!==code){ err.textContent='Código incorrecto o expirado'; err.style.display='block'; return; }
+  const user = USERS.find(x => x.id===userId);
+  if(!user){ err.textContent='Usuario no encontrado'; err.style.display='block'; return; }
+  localStorage.removeItem('apro_otp_' + u);
+  SESSION = {id:user.id, nombre:user.nombre, rol:user.rol, sucursal:user.sucursal};
+  sessionStorage.setItem('apro_session', JSON.stringify(SESSION));
+  startApp();
+}
+
+function startApp(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('user-badge').textContent = SESSION.nombre + ' · ' + SESSION.sucursal;
+  if(SESSION.rol==='admin') document.getElementById('nav-admin').style.display='';
+  renderAdminUsers();
+  showSection('oc');
+  renderOCEmpty();
+  document.getElementById('prod-results').innerHTML = '<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.<br>Puedes combinar palabras en cualquier orden.</p></div>';
+}
+
+function doLogout(){
+  SESSION=null; MS_TOKEN=null;
+  sessionStorage.removeItem('apro_session');
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+}
+
+// ================================================================
+// OAUTH CALLBACK CHECK
+// ================================================================
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  const code=p.get('code'), state=p.get('state'), error=p.get('error');
+  if(error){ setTimeout(()=>showToast('Error Microsoft: '+p.get('error_description'),true),500); return; }
+  if(code && state){ handleMSCallback(code,state); return; }
+  if(SESSION) startApp();
+})();
+
+// ================================================================
+// NAVEGACIÓN
+// ================================================================
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('section-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+}
+function backToList(type){
+  if(type==='oc'){
+    document.getElementById('oc-list-view').style.display='';
+    document.getElementById('oc-detail-view').style.display='none';
+  } else {
+    document.getElementById('prod-list-view').style.display='';
+    document.getElementById('prod-detail-view').style.display='none';
+  }
+}
+
+// ================================================================
+// BUSCAR OC
+// ================================================================
+function renderOCEmpty(){
+  document.getElementById('oc-results').innerHTML = `<div class="no-data">
+    <h3>Ingresa un término de búsqueda</h3>
+    <p>Busca por sucursal, orden de compra, orden de venta, factura, código o modelo.</p>
+    ${!DB.ventas.length ? '<p style="margin-top:1rem;color:var(--accent-dark)">Usa ⟳ Sincronizar para cargar tu Excel desde OneDrive,<br>o carga el archivo manualmente.</p>' : ''}
+  </div>`;
+}
+
+function searchOC(q){
+  if(!q.trim()){ renderOCEmpty(); return; }
+  if(!DB.ventas.length){ document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Sincroniza desde OneDrive o carga el Excel primero.</p></div>'; return; }
+  const nq = norm(q);
+  const fields = ['Sucursal','Orden de Compra','Orden de Venta','N° Factura','Codigo','Modelo'];
+  const matches = DB.ventas.filter(r => fields.some(f => norm(r[f]).includes(nq)));
+  const groups = {};
+  matches.forEach(r => {
+    const oc = String(r['Orden de Compra'] || '(sin OC)');
+    if(!groups[oc]) groups[oc] = {rows:[], sucursal:r['Sucursal'], oc};
+    groups[oc].rows.push(r);
+  });
+  const keys = Object.keys(groups);
+  if(!keys.length){ document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin resultados</h3><p>No se encontraron coincidencias para ese término.</p></div>'; return; }
+  let html = '<div class="results-list">';
+  keys.forEach(oc => {
+    const g = groups[oc];
+    const facts = [...new Set(g.rows.map(r=>r['N° Factura']).filter(f=>f&&norm(String(f))!=='sin facturar'))];
+    const fl = facts.length ? facts.slice(0,2).join(', ')+(facts.length>2?'…':'') : 'Sin facturar';
+    html += `<div class="result-item" onclick="showOCDetail(${JSON.stringify(oc)})">
+      <div class="result-meta">
+        <div><div class="result-label">Sucursal</div><div class="result-value">${esc(g.sucursal)}</div></div>
+        <div><div class="result-label">Orden de Compra</div><div class="result-value">${esc(oc)}</div></div>
+        <div><div class="result-label">Facturas</div><div class="result-value"><span class="badge">${esc(fl)}</span></div></div>
+        <div><div class="result-label">Líneas</div><div class="result-value">${g.rows.length}</div></div>
+      </div>
+      <span class="result-arrow">›</span>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('oc-results').innerHTML = html;
+}
+
+function showOCDetail(oc){
+  const rows = DB.ventas.filter(r => String(r['Orden de Compra']||'(sin OC)') === oc);
+  document.getElementById('oc-list-view').style.display='none';
+  document.getElementById('oc-detail-view').style.display='block';
+  document.getElementById('oc-detail-title').textContent = 'OC ' + oc;
+  document.getElementById('oc-detail-sub').textContent = (rows[0]&&rows[0]['Sucursal']) || '';
+  const fm = {};
+  rows.forEach(r => {
+    const fn = r['N° Factura'];
+    const k = (fn && norm(String(fn))!=='sin facturar' && fn) ? String(fn) : '__SF__';
+    if(!fm[k]) fm[k]=[];
+    fm[k].push(r);
+  });
+  let html = '';
+  Object.keys(fm).filter(k=>k!=='__SF__').forEach(fn => {
+    const fr = fm[fn][0];
+    html += `<div class="factura-card">
+      <div class="factura-head">
+        <span class="factura-num">${esc(fn)}</span>
+        <div><div class="fh-label">Orden de Venta</div><div class="fh-value">${esc(fr['Orden de Venta']||'—')}</div></div>
+        <div><div class="fh-label">Fecha OV</div><div class="fh-value">${fmtFecha(fr['Fecha orden de venta'])}</div></div>
+        <div><div class="fh-label">Fecha Factura</div><div class="fh-value">${fmtFecha(fr['Fecha de Factura'])}</div></div>
+        ${fr['Comentarios']?`<div><div class="fh-label">Comentarios</div><div class="fh-value">${esc(fr['Comentarios'])}</div></div>`:''}
+      </div>${buildOCTable(fm[fn])}</div>`;
+  });
+  if(fm['__SF__']){
+    const sfr = fm['__SF__'][0];
+    html += `<div class="factura-card">
+      <div class="sinfact-head">
+        <div><div class="fh-label">Estado</div><div class="fh-value">Sin Facturar</div></div>
+        <div><div class="fh-label">Orden de Venta</div><div class="fh-value">${esc(sfr['Orden de Venta']||'—')}</div></div>
+        <div><div class="fh-label">Fecha OV</div><div class="fh-value">${fmtFecha(sfr['Fecha orden de venta'])}</div></div>
+      </div>${buildOCTable(fm['__SF__'])}</div>`;
+  }
+  document.getElementById('oc-detail-content').innerHTML = html;
+}
+
+function buildOCTable(rows){
+  return `<div class="detail-table-wrap"><table class="detail-table">
+    <thead>
+      <tr>
+        <th rowspan="2">Artículo</th><th rowspan="2">Código</th>
+        <th rowspan="2" style="text-align:right">Facturado</th>
+        <th rowspan="2" style="text-align:right">Solicitado</th>
+        <th rowspan="2" style="text-align:right">Pendiente</th>
+        <th rowspan="2" style="text-align:right">Disponible</th>
+        <th colspan="2" style="text-align:center;background:rgba(200,169,122,0.1);color:var(--accent-dark)">Próxima Llegada</th>
+        <th colspan="5" style="text-align:center;background:var(--surface2);color:var(--warm-gray)">Stock</th>
+      </tr>
+      <tr>
+        <th style="background:rgba(200,169,122,0.06)">Fecha</th>
+        <th style="background:rgba(200,169,122,0.06);text-align:right">Cant. Disp.</th>
+        <th style="text-align:right">Pudahuel</th><th style="text-align:right">Presencial</th>
+        <th style="text-align:right">Antofagasta</th><th style="text-align:right">Res. APRO</th>
+        <th style="text-align:right">Recepción</th>
+      </tr>
+    </thead><tbody>` +
+    rows.map(r => `<tr>
+      <td>${esc(r['Articulo']||r['Artículo']||'')}</td>
+      <td style="font-family:monospace;font-size:12px">${esc(r['Codigo']||'')}</td>
+      <td style="text-align:right">${esc(String(r['Cantidad Facturada']??'—'))}</td>
+      <td style="text-align:right">${esc(String(r['Cantidad Solicitada']??'—'))}</td>
+      <td style="text-align:right">${fmtNum(r['Cantidad Pendiente'])}</td>
+      <td style="text-align:right">${fmtNum(r['Disponible para facturar'])}</td>
+      <td style="background:rgba(200,169,122,0.04);font-size:12px">${fmtFecha(r['Fecha Prox Llegada'])}</td>
+      <td style="background:rgba(200,169,122,0.04);text-align:right">${esc(String(r['prox Llegada (disponible)']??r['Prox Llegada (disponible)']??'—'))}</td>
+      <td style="text-align:right">${fmtStock(r['Pudahuel'])}</td>
+      <td style="text-align:right">${fmtStock(r['Presencial'])}</td>
+      <td style="text-align:right">${fmtStock(r['Antofagasta'])}</td>
+      <td style="text-align:right">${fmtStock(r['Reserva APRO'])}</td>
+      <td style="text-align:right">${fmtStock(r['Recepción']||r['Recepcion']||'')}</td>
+    </tr>`).join('') +
+    '</tbody></table></div>';
+}
+
+// ================================================================
+// PRODUCTOS
+// ================================================================
+function searchProducts(q){
+  const el = document.getElementById('prod-results');
+  if(!q.trim()){ el.innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.<br>Puedes combinar palabras en cualquier orden.</p></div>'; return; }
+  if(!DB.base.length){ el.innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Sincroniza desde OneDrive o carga el Excel primero.</p></div>'; return; }
+  const words = norm(q).split(/\s+/).filter(Boolean);
+  const fields = ['Modelo','Codigo','Cod APRO','Color','H/M'];
+  const matches = DB.base.filter(r => {
+    const hay = fields.map(f=>norm(r[f])).join(' ');
+    return words.every(w => hay.includes(w));
+  });
+  const mm = {};
+  matches.forEach(r => { const m=r['Modelo']||'(sin modelo)'; if(!mm[m]) mm[m]=[]; mm[m].push(r); });
+  const mkeys = Object.keys(mm);
+  if(!mkeys.length){ el.innerHTML='<div class="no-data"><h3>Sin resultados</h3><p>Prueba con otros términos.</p></div>'; return; }
+  let html = '<div class="results-list">';
+  mkeys.forEach(m => {
+    const rows=mm[m];
+    const colors=[...new Set(rows.map(r=>r['Color']).filter(Boolean))];
+    const hm=[...new Set(rows.map(r=>r['H/M']).filter(Boolean))];
+    const precio=rows[0]&&rows[0]['Precio APRO'];
+    html += `<div class="product-result" onclick="showProductDetail(${JSON.stringify(m)})">
+      <div class="product-result-inner">
+        <div>
+          <div class="product-model">${esc(m)}</div>
+          <div class="product-meta-tags">
+            ${hm.map(h=>`<span class="badge badge-accent">${esc(h==='H'?'Hombre':h==='M'?'Mujer':h)}</span>`).join('')}
+            ${colors.slice(0,6).map(c=>`<span class="badge">${esc(c)}</span>`).join('')}
+            <span class="badge">${rows.length} artículo(s)</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:1.5rem">
+          ${precio?`<div style="text-align:right"><div style="font-size:11px;color:var(--warm-gray);letter-spacing:0.1em;text-transform:uppercase">Precio APRO</div><div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:500">${formatPrecio(precio)}</div></div>`:''}
+          <span class="result-arrow">›</span>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function showProductDetail(modelo){
+  const rows = DB.base.filter(r => (r['Modelo']||'(sin modelo)') === modelo);
+  document.getElementById('prod-list-view').style.display='none';
+  document.getElementById('prod-detail-view').style.display='block';
+  document.getElementById('prod-detail-title').textContent = modelo;
+  const precio = rows[0]&&rows[0]['Precio APRO'];
+  const hmMap = {};
+  rows.forEach(r => {
+    const hm=r['H/M']||'Sin género', col=r['Color']||'Sin color';
+    if(!hmMap[hm]) hmMap[hm]={};
+    if(!hmMap[hm][col]) hmMap[hm][col]=[];
+    hmMap[hm][col].push(r);
+  });
+  let html = `<div style="border:1px solid var(--border)">
+    <div class="product-detail-head">
+      <div><div class="product-detail-model">${esc(modelo)}</div></div>
+      ${precio?`<div style="text-align:right"><div class="price-label">Precio APRO</div><div class="product-price">${formatPrecio(precio)}</div></div>`:''}
+    </div><div style="padding:1.5rem">`;
+  Object.keys(hmMap).forEach(hm => {
+    html += `<div class="genero-section"><div class="genero-label">Género</div><div class="genero-title">${esc(hm==='H'?'Hombre':hm==='M'?'Mujer':hm)}</div></div>`;
+    Object.keys(hmMap[hm]).forEach(col => {
+      html += `<div class="color-section"><div class="color-title">${esc(col)}</div>
+        <div class="detail-table-wrap"><table class="detail-table">
+          <thead>
+            <tr>
+              <th rowspan="2">Descripción</th><th rowspan="2">Código</th><th rowspan="2">Cód APRO</th>
+              <th rowspan="2">EAN13</th><th rowspan="2" style="text-align:center">Cant x Caja</th>
+              <th colspan="5" style="text-align:center;background:var(--surface2);color:var(--warm-gray)">Stock</th>
+              <th colspan="2" style="text-align:center;background:rgba(200,169,122,0.08);color:var(--accent-dark)">Próxima Llegada</th>
+            </tr>
+            <tr>
+              <th style="text-align:right">Pudahuel</th><th style="text-align:right">Presencial</th>
+              <th style="text-align:right">Antofagasta</th><th style="text-align:right">Res. APRO</th>
+              <th style="text-align:right">Recepción</th>
+              <th style="background:rgba(200,169,122,0.06)">Fecha</th>
+              <th style="background:rgba(200,169,122,0.06);text-align:right">Cant. Disp.</th>
+            </tr>
+          </thead><tbody>` +
+        hmMap[hm][col].map(r => `<tr>
+          <td>${esc(r['Descripcion']||r['Descripción']||'')}</td>
+          <td style="font-family:monospace;font-size:12px">${esc(r['Codigo']||'')}</td>
+          <td style="font-family:monospace;font-size:12px">${esc(r['Cod APRO']||'')}</td>
+          <td style="font-family:monospace;font-size:12px">${esc(r['EAN13']||'')}</td>
+          <td style="text-align:center">${esc(String(r['Cant x Caja']||''))}</td>
+          <td style="text-align:right">${fmtStock(r['Pudahuel'])}</td>
+          <td style="text-align:right">${fmtStock(r['Presencial'])}</td>
+          <td style="text-align:right">${fmtStock(r['Antofagasta'])}</td>
+          <td style="text-align:right">${fmtStock(r['Reserva APRO'])}</td>
+          <td style="text-align:right">${fmtStock(r['Recepción']||r['Recepcion']||'')}</td>
+          <td style="background:rgba(200,169,122,0.04);font-size:12px">${fmtFecha(r['Fecha Prox Llegada'])}</td>
+          <td style="background:rgba(200,169,122,0.04);text-align:right">${esc(String(r['Ctd prox llegada (disponible)']??r['Ctd prox llegada (Disponible)']??'—'))}</td>
+        </tr>`).join('') +
+        '</tbody></table></div></div>';
+    });
+  });
+  html += '</div></div>';
+  document.getElementById('prod-detail-content').innerHTML = html;
+}
+
+// ================================================================
+// MANTENEDOR
+// ================================================================
+function renderAdminUsers(filter=''){
+  const list = document.getElementById('admin-users-list'); if(!list) return;
+  const nf = norm(filter);
+  const shown = USERS.filter(u => !nf || norm(u.nombre).includes(nf) || norm(u.sucursal).includes(nf) || norm(u.mail).includes(nf));
+  if(!shown.length){ list.innerHTML='<div style="padding:2rem;text-align:center;color:var(--warm-gray)">Sin resultados</div>'; return; }
+  list.innerHTML = shown.map(u => `
+    <div class="user-row ${editingUserId===u.id?'selected':''}" onclick="editUser(${u.id})">
+      <div>
+        <div class="user-name"><span class="status-dot ${u.activo?'active':'inactive'}"></span>${esc(u.nombre)}</div>
+        <div class="user-meta">${esc(u.sucursal)} · ${esc(u.mail)} · <span style="text-transform:uppercase;font-size:11px;letter-spacing:0.05em">${u.rol}</span></div>
+      </div>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" ${u.activo?'checked':''} onchange="toggleUser(${u.id},this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>`).join('');
+}
+function searchUsers(q){ renderAdminUsers(q); }
+function newUser(){
+  editingUserId=null;
+  document.getElementById('form-title').textContent='Nuevo usuario';
+  ['f-nombre','f-sucursal','f-mail','f-pass'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-rol').value='user';
+  document.getElementById('btn-delete').style.display='none';
+  renderAdminUsers(document.getElementById('admin-search').value);
+}
+function editUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u) return;
+  editingUserId=id;
+  document.getElementById('form-title').textContent='Editar usuario';
+  document.getElementById('f-nombre').value=u.nombre;
+  document.getElementById('f-sucursal').value=u.sucursal;
+  document.getElementById('f-mail').value=u.mail;
+  document.getElementById('f-pass').value=u.pass;
+  document.getElementById('f-rol').value=u.rol;
+  document.getElementById('btn-delete').style.display='';
+  renderAdminUsers(document.getElementById('admin-search').value);
+}
+function saveUser(){
+  const nombre=document.getElementById('f-nombre').value.trim();
+  const sucursal=document.getElementById('f-sucursal').value.trim();
+  const mail=document.getElementById('f-mail').value.trim();
+  const pass=document.getElementById('f-pass').value;
+  const rol=document.getElementById('f-rol').value;
+  if(!nombre||!mail||!pass){ showToast('Nombre, correo y contraseña son requeridos',true); return; }
+  if(editingUserId){ Object.assign(USERS.find(x=>x.id===editingUserId),{nombre,sucursal,mail,pass,rol}); }
+  else { USERS.push({id:Date.now(),nombre,sucursal,mail,pass,rol,activo:true}); }
+  saveUsers(); newUser(); showToast('Usuario guardado correctamente');
+}
+function cancelUser(){ newUser(); }
+function deleteUser(){
+  if(!editingUserId) return;
+  if(!confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.')) return;
+  USERS=USERS.filter(x=>x.id!==editingUserId);
+  saveUsers(); newUser(); showToast('Usuario eliminado');
+}
+function toggleUser(id,val){
+  const u=USERS.find(x=>x.id===id); if(u){ u.activo=val; saveUsers(); }
+}
+
+// ================================================================
+// HELPERS
+// ================================================================
+function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function fmtStock(v){
+  if(v===''||v===null||v===undefined) return '<span class="muted">—</span>';
+  const s=String(v).trim();
+  const neg=s.startsWith('(')||s.startsWith('-');
+  const n=parseFloat(s.replace(/[()]/g,''));
+  if(!isNaN(n)&&(n<0||neg)) return `<span class="neg">${Math.abs(n)>0?'-'+Math.abs(n):n}</span>`;
+  return esc(s);
+}
+function fmtNum(v){
+  if(v===''||v===null||v===undefined) return '<span class="muted">—</span>';
+  const n=parseFloat(v);
+  if(!isNaN(n)&&n<0) return `<span class="neg">${n}</span>`;
+  return esc(String(v));
+}
+function fmtFecha(v){
+  if(!v||v==='') return '<span class="muted">—</span>';
+  if(v instanceof Date) return esc(v.toLocaleDateString('es-CL'));
+  return esc(String(v));
+}
+function formatPrecio(v){
+  if(!v) return '';
+  const n=parseFloat(String(v).replace(/[^0-9.]/g,''));
+  if(isNaN(n)) return esc(String(v));
+  return '$'+n.toLocaleString('es-CL');
+}
+
+function showLoading(msg,sub){
+  document.getElementById('loading-msg').textContent=msg||'Cargando...';
+  document.getElementById('loading-sub').textContent=sub||'';
+  document.getElementById('loading-overlay').style.display='flex';
+}
+function updateLoading(msg,sub){
+  document.getElementById('loading-msg').textContent=msg;
+  document.getElementById('loading-sub').textContent=sub||'';
+}
+function hideLoading(){ document.getElementById('loading-overlay').style.display='none'; }
+function showToast(msg,isError=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast'+(isError?' error':''); t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+</script>
+</body>
+</html>

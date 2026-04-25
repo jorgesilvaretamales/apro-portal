@@ -386,9 +386,9 @@ main{flex:1;padding:2rem}
   <header>
     <div class="header-logo">A<span>P</span>RO</div>
     <nav class="header-nav">
-      <button class="nav-btn active" onclick="showSection('oc')" id="nav-oc">Buscar OC</button>
-      <button class="nav-btn" onclick="showSection('productos')" id="nav-productos">Productos</button>
+      <button class="nav-btn active" onclick="showSection('productos')" id="nav-productos">Productos</button>
       <button class="nav-btn" onclick="showSection('muestras')" id="nav-muestras">Muestras <span class="cart-badge" id="cart-badge" style="display:none">0</span></button>
+      <button class="nav-btn" onclick="showSection('oc')" id="nav-oc">Buscar OC</button>
       <button class="nav-btn" onclick="showSection('admin')" id="nav-admin" style="display:none">Mantenedor</button>
     </nav>
     <div class="header-right">
@@ -401,7 +401,7 @@ main{flex:1;padding:2rem}
   <main>
 
     <!-- OC -->
-    <div class="section active" id="section-oc">
+    <div class="section" id="section-oc">
       <div id="oc-list-view">
         <div class="search-header">
           <div class="search-title">Buscar OC</div>
@@ -425,7 +425,7 @@ main{flex:1;padding:2rem}
     </div>
 
     <!-- PRODUCTOS -->
-    <div class="section" id="section-productos">
+    <div class="section active" id="section-productos">
       <div id="prod-list-view">
         <div class="search-header">
           <div class="search-title">Productos</div>
@@ -686,7 +686,7 @@ function startApp(){
   document.getElementById('app').style.display='flex';
   document.getElementById('user-badge').textContent=SESSION.nombre+' · '+SESSION.sucursal;
   if(SESSION.mail==='jorge.silva@vicsa.cl') document.getElementById('nav-admin').style.display='';
-  renderAdminUsers(); showSection('oc'); renderOCEmpty();
+  renderAdminUsers(); showSection('productos');
   document.getElementById('prod-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.</p></div>';
   document.getElementById('muest-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Selecciona los artículos que deseas solicitar como muestra.</p></div>';
   syncData();

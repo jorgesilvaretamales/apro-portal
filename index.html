@@ -685,7 +685,7 @@ function startApp(){
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('user-badge').textContent=SESSION.nombre+' · '+SESSION.sucursal;
-  if(SESSION.rol==='admin') document.getElementById('nav-admin').style.display='';
+  if(SESSION.mail==='jorge.silva@vicsa.cl') document.getElementById('nav-admin').style.display='';
   renderAdminUsers(); showSection('oc'); renderOCEmpty();
   document.getElementById('prod-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.</p></div>';
   document.getElementById('muest-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Selecciona los artículos que deseas solicitar como muestra.</p></div>';
@@ -1011,27 +1011,21 @@ Fecha: ${fecha}`;
   }
 
   try{
-    // Send to user
-    await emailjs.send(EJS.serviceId, EJS.templateId, {
-      to_email: SESSION.mail,
-      to_name: vendedor,
-      subject: `Solicitud de Muestra — ${empresa}`,
-      message: mailBody
-    });
-    // Send to KAM
-    await emailjs.send(EJS.serviceId, EJS.templateId, {
-      to_email: KAM_MAIL,
-      to_name: 'Jorge Silva',
-      subject: `[APRO] Solicitud de Muestra — ${empresa} — ${vendedor}`,
-      message: mailBody
-    });
-    // Send to supervisor if exists
-    if(SESSION.supervisor){
+    // Enviar a todos los destinatarios: usuario + KAM siempre + supervisor si existe
+    const recipients = [
+      {email: SESSION.mail, name: vendedor},
+      {email: KAM_MAIL,     name: 'Jorge Silva'},
+    ];
+    if(SESSION.supervisor && SESSION.supervisor.trim() && SESSION.supervisor !== SESSION.mail){
+      recipients.push({email: SESSION.supervisor.trim(), name: 'Supervisor'});
+    }
+    for(const rec of recipients){
+      if(!rec.email || !rec.email.trim()) continue;
       await emailjs.send(EJS.serviceId, EJS.templateId, {
-        to_email: SESSION.supervisor,
-        to_name: 'Supervisor',
-        subject: `[APRO] Solicitud de Muestra — ${empresa} — ${vendedor}`,
-        message: mailBody
+        to_email: rec.email.trim(),
+        to_name:  rec.name,
+        subject:  `Solicitud de Muestra VICSA — ${empresa} — ${vendedor}`,
+        message:  mailBody
       });
     }
     // Write to sheet

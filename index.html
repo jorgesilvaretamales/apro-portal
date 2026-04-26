@@ -751,7 +751,8 @@ function startApp(){
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('user-badge').textContent=SESSION.nombre+' · '+SESSION.sucursal;
-  if(SESSION.mail==='jorge.silva@vicsa.cl') document.getElementById('nav-admin').style.display='';
+  document.getElementById('nav-admin').style.display='none';
+  if(SESSION.rol==='admin') document.getElementById('nav-admin').style.display='';
   renderAdminUsers(); showSection('productos');
   document.getElementById('prod-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.</p></div>';
   document.getElementById('muest-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Selecciona los artículos que deseas solicitar como muestra.</p></div>';
@@ -778,6 +779,11 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 // NAV
 // ================================================================
 function showSection(id){
+  // Guard: only admin role can access mantenedor
+  if(id==='admin' && SESSION && SESSION.rol!=='admin'){
+    showToast('No tienes acceso a esta sección', true);
+    return;
+  }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('section-'+id).classList.add('active');

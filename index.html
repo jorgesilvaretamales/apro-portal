@@ -664,19 +664,19 @@ async function loadUsersFromSheet(){
     });
     const data = await r.json();
     if(data.ok && data.users && data.users.length){
-      // Map sheet columns to user objects
+      // Sheet always wins — overwrite localStorage completely
       USERS = data.users.map(u=>({
-        id: u['id'] || Date.now(),
-        nombre: u['Nombre'] || u['nombre'] || '',
-        mail: u['Mail'] || u['mail'] || '',
-        sucursal: u['Sucursal'] || u['sucursal'] || '',
-        supervisor: u['Mail Supervisor'] || u['supervisor'] || '',
-        pass: u['Contraseña'] || u['pass'] || 'apro2024',
-        rol: u['Rol'] || u['rol'] || 'user',
+        id: String(u['id']||u['Id']||Date.now()),
+        nombre: String(u['Nombre']||u['nombre']||''),
+        mail: String(u['Mail']||u['mail']||'').trim().toLowerCase(),
+        sucursal: String(u['Sucursal']||u['sucursal']||''),
+        supervisor: String(u['Mail Supervisor']||u['supervisor']||'').trim(),
+        pass: String(u['Contraseña']||u['pass']||''),
+        rol: String(u['Rol']||u['rol']||'user').toLowerCase(),
         activo: String(u['Activo']||u['activo']||'Si').toLowerCase()!=='no',
         mustChange: String(u['Cambiar Clave']||u['mustChange']||'No').toLowerCase()==='si'
       }));
-      saveUsers(); // sync to localStorage as cache
+      localStorage.setItem('apro_users', JSON.stringify(USERS));
       return true;
     }
   }catch(e){ console.warn('Sheet load error:',e); }
@@ -755,7 +755,7 @@ async function doLogin(){
   showLoading('Verificando acceso...','');
   await loadUsersFromSheet();
   hideLoading();
-  const user=USERS.find(x=>x.activo&&(x.mail===u||x.nombre===u)&&x.pass===p);
+  const user=USERS.find(x=>x.activo&&(x.mail===u.trim().toLowerCase()||x.nombre===u)&&x.pass===p);
   if(!user){err.textContent='Usuario o contraseña incorrectos';err.style.display='block';return;}
   if(user.mustChange){
     pendingUser=user;

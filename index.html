@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 <title>APRO Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -1513,8 +1513,29 @@ function copyAndTrack(ov, event){
 
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function fmtS(v){if(v===''||v===null||v===undefined)return '<span class="muted">—</span>';const s=String(v).trim();const neg=s.startsWith('(')||s.startsWith('-');const n=parseFloat(s.replace(/[()]/g,''));if(!isNaN(n)&&(n<0||neg))return `<span class="neg">-${Math.abs(n)}</span>`;return esc(s);}
-function fmtN(v){if(v===''||v===null||v===undefined)return '<span class="muted">—</span>';const n=parseFloat(v);if(!isNaN(n)&&n<0)return `<span class="neg">${n}</span>`;return esc(String(v));}
+function fmtS(v){
+  if(v===''||v===null||v===undefined) return '<span class="muted">—</span>';
+  const s=String(v).trim();
+  if(s===''||s==='-'||s==='0'||s==='0.0') return '<span class="muted">—</span>';
+  const neg=s.startsWith('(')||s.startsWith('-');
+  const n=parseFloat(s.replace(/[()]/g,''));
+  if(!isNaN(n)){
+    if(n===0) return '<span class="muted">—</span>';
+    if(n<0||neg) return `<span class="neg">-${Math.abs(n)}</span>`;
+  }
+  return esc(s);
+}
+function fmtN(v){
+  if(v===''||v===null||v===undefined) return '<span class="muted">—</span>';
+  const s=String(v).trim();
+  if(s===''||s==='0'||s==='0.0') return '<span class="muted">—</span>';
+  const n=parseFloat(s);
+  if(!isNaN(n)){
+    if(n===0) return '<span class="muted">—</span>';
+    if(n<0) return `<span class="neg">${n}</span>`;
+  }
+  return esc(s);
+}
 function fmtF(v){
   if(!v||v==='') return '<span class="muted">—</span>';
   if(v instanceof Date) return esc(v.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}));

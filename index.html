@@ -885,7 +885,25 @@ function showOCDetail(idx){
   const fm={};
   rows.forEach(r=>{const fn=r['N° Factura'];const k=(fn&&norm(String(fn))!=='sin facturar'&&String(fn).trim())?String(fn):'__SF__';if(!fm[k])fm[k]=[];fm[k].push(r);});
   let html='';
-  Object.keys(fm).filter(k=>k!=='__SF__').forEach(fn=>{
+  // Sin facturar primero
+  if(fm['__SF__']){
+    const sfr=fm['__SF__'][0];
+    const ovSF=String(sfr['Orden de Venta']||'').trim();
+    const trackBtnSF=ovSF?`<button onclick="copyAndTrack('${ovSF}',event)"
+      style="display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.85);padding:3px 9px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;border-radius:2px"
+      onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Ver Tracking</button>`:'';
+    html+=`<div class="factura-card"><div class="sinfact-head">
+      <div><div class="fh-label">Estado</div><div class="fh-value">Sin Facturar</div></div>
+      <div><div class="fh-label">Orden de Venta</div><div class="fh-value">${esc(ovSF||'—')}</div></div>
+      ${trackBtnSF}
+      <div><div class="fh-label">Fecha OV</div><div class="fh-value">${fmtF(sfr['Fecha orden de venta'])}</div></div>
+    </div>${buildOCTable(fm['__SF__'])}</div>`;
+  }
+  // Luego facturas emitidas
+  const factKeys = Object.keys(fm).filter(k=>k!=='__SF__').sort();
+  factKeys.forEach(fn=>{
     const fr=fm[fn][0];
     const ovF=String(fr['Orden de Venta']||'').trim();
     const trackBtnF=ovF?`<button onclick="copyAndTrack('${ovF}',event)"
@@ -902,7 +920,386 @@ function showOCDetail(idx){
       ${fr['Comentarios']?`<div><div class="fh-label">Comentarios</div><div class="fh-value">${esc(fr['Comentarios'])}</div></div>`:''}
     </div>${buildOCTable(fm[fn])}</div>`;
   });
-  if(fm['__SF__']){
+  document.getElementById('oc-detail-content').innerHTML=html;
+}
+
+function buildOCTable(rows){
+  return `<div class="detail-table-wrap"><table class="detail-table">
+    <thead><tr>
+      <th rowspan="2">Artículo</th><th rowspan="2">Código</th>
+      <th rowspan="2" style="text-align:right">Facturado</th><th rowspan="2" style="text-align:right">Solicitado</th>
+      <th rowspan="2" style="text-align:right">Pendiente</th><th rowspan="2" style="text-align:right">Disponible</th>
+      <th colspan="2" style="text-align:center;background:rgba(200,169,122,0.1);color:var(--accent-dark)">Próxima Llegada</th>
+      <th colspan="5" style="text-align:center;background:var(--surface2);color:var(--warm-gray)">Stock</th>
+    </tr><tr>
+      <th style="background:rgba(200,169,122,0.06)">Fecha</th><th style="background:rgba(200,169,122,0.06);text-align:right">Cant. Disp.</th>
+      <th style="text-align:right">Pudahuel</th><th style="text-align:right">Presencial</th>
+      <th style="text-align:right">Antofagasta</th><th style="text-align:right">Res. APRO</th><th style="text-align:right">Recepción</th>
+    </tr></thead><tbody>`+
+    rows.map(r=>`<tr>
+      <td>${esc(String(r['Articulo']||r['Artículo']||''))}</td>
+      <td style="font-family:monospace;font-size:12px">${esc(String(r['Codigo']||''))}</td>
+      <td style="text-align:right">${esc(String(r['Cantidad Facturada']??'—'))}</td>
+      <td style="text-align:right">${esc(String(r['Cantidad Solicitada']??'—'))}</td>
+      <td style="text-align:right">${fmtN(r['Cantidad Pendiente'])}</td>
+      <td style="text-align:right">${fmtN(r['Disponible para facturar'])}</td>
+      <td style="background:rgba(200,169,122,0.04);font-size:12px">${fmtF(r['Fecha Prox Llegada'])}</td>
+      <td style="background:rgba(200,169,122,0.04);text-align:right">${esc(String(r['prox Llegada (disponible)']??r['Prox Llegada (disponible)']??'—'))}</td>
+      <td style="text-align:right">${fmtS(r['Pudahuel'])}</td><td style="text-align:right">${fmtS(r['Presencial'])}</td>
+      <td style="text-align:right">${fmtS(r['Antofagasta'])}</td><td style="text-align:right">${fmtS(r['Reserva APRO'])}</td>
+      <td style="text-align:right">${fmtS(r['Recepción']||r['Recepcion']||'')}</td>
+    </tr>`).join('')+
+    '</tbody></table></div>';
+}
+
+// ================================================================
+// PRODUCTOS
+// ================================================================
+function buildProdResults(q, containerId, indexVar, detailFn){
+  const el=document.getElementById(containerId);
+  if(!q.trim()){el.innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.</p></div>';return [];}
+  if(!DB.base.length){el.innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Presiona ⟳ Sincronizar.</p></div>';return [];}
+  const words=norm(q).split(/\s+/).filter(Boolean);
+  const fields=['Modelo','Codigo','Cod APRO','Color','H/M'];
+  const matches=DB.base.filter(r=>{const hay=fields.map(f=>norm(r[f])).join(' ');return words.every(w=>hay.includes(w));});
+  const mm={};
+  matches.forEach(r=>{const m=String(r['Modelo']||'(sin modelo)');if(!mm[m])mm[m]=[];mm[m].push(r);});
+  const mkeys=Object.keys(mm);
+  if(!mkeys.length){el.innerHTML='<div class="no-data"><h3>Sin resultados</h3></div>';return [];}
+  let html='<div class="results-list">';
+  mkeys.forEach((m,idx)=>{
+    const rows=mm[m];
+    const colors=[...new Set(rows.map(r=>String(r['Color']||'')).filter(Boolean))];
+    const hm=[...new Set(rows.map(r=>String(r['H/M']||'')).filter(Boolean))];
+    const precio=rows[0]&&rows[0]['Precio APRO'];
+    html+=`<div class="product-result" onclick="${detailFn}(${idx})">
+      <div class="product-result-inner">
+        <div>
+          <div class="product-model">${esc(m)}</div>
+          <div class="product-meta-tags">
+            ${hm.map(h=>`<span class="badge badge-accent">${esc(h==='H'?'Hombre':h==='M'?'Mujer':h)}</span>`).join('')}
+            ${colors.slice(0,6).map(c=>`<span class="badge">${esc(c)}</span>`).join('')}
+            <span class="badge">${rows.length} artículo(s)</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:1.5rem">
+          ${precio?`<div style="text-align:right"><div style="font-size:11px;color:var(--warm-gray);text-transform:uppercase;letter-spacing:0.1em">Precio APRO</div><div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:500">${fmtP(precio)}</div></div>`:''}
+          <span class="result-arrow">›</span>
+        </div>
+      </div></div>`;
+  });
+  html+='</div>'; el.innerHTML=html;
+  return mkeys;
+}
+
+function searchProducts(q){ PROD_INDEX=buildProdResults(q,'prod-results','PROD_INDEX','showProductDetail'); }
+function searchMuestras(q){ MUEST_INDEX=buildProdResults(q,'muest-results','MUEST_INDEX','showMuestraDetail'); }
+
+function buildProductDetailHTML(modelo, withCheckbox){
+  const rows=DB.base.filter(r=>String(r['Modelo']||'(sin modelo)')===modelo);
+  const precio=rows[0]&&rows[0]['Precio APRO'];
+  const hmMap={};
+  rows.forEach(r=>{const hm=String(r['H/M']||'Sin género'),col=String(r['Color']||'Sin color');if(!hmMap[hm])hmMap[hm]={};if(!hmMap[hm][col])hmMap[hm][col]=[];hmMap[hm][col].push(r);});
+  let html=`<div style="border:1px solid var(--border)">
+    <div class="product-detail-head">
+      <div><div class="product-detail-model">${esc(modelo)}</div></div>
+      ${precio?`<div style="text-align:right"><div class="price-label">Precio APRO</div><div class="product-price">${fmtP(precio)}</div></div>`:''}
+    </div><div style="padding:1.5rem">`;
+  Object.keys(hmMap).forEach(hm=>{
+    html+=`<div class="genero-section"><div class="genero-label">Género</div><div class="genero-title">${esc(hm==='H'?'Hombre':hm==='M'?'Mujer':hm)}</div></div>`;
+    Object.keys(hmMap[hm]).forEach(col=>{
+      html+=`<div class="color-section"><div class="color-title">${esc(col)}</div>
+        <div class="detail-table-wrap"><table class="detail-table">
+          <thead><tr>
+            ${withCheckbox?'<th rowspan="2" style="width:40px"></th>':''}
+            <th rowspan="2">Descripción</th><th rowspan="2">Código</th><th rowspan="2">Cód APRO</th>
+            <th rowspan="2">EAN13</th><th rowspan="2" style="text-align:center">Cant x Caja</th>
+            <th colspan="5" style="text-align:center;background:var(--surface2);color:var(--warm-gray)">Stock</th>
+            <th colspan="2" style="text-align:center;background:rgba(200,169,122,0.08);color:var(--accent-dark)">Próxima Llegada</th>
+          </tr><tr>
+            <th style="text-align:right">Pudahuel</th><th style="text-align:right">Presencial</th>
+            <th style="text-align:right">Antofagasta</th><th style="text-align:right">Res. APRO</th><th style="text-align:right">Recepción</th>
+            <th style="background:rgba(200,169,122,0.06)">Fecha</th><th style="background:rgba(200,169,122,0.06);text-align:right">Cant. Disp.</th>
+          </tr></thead><tbody>`;
+      hmMap[hm][col].forEach((r,ri)=>{
+        const artKey=String(r['Codigo']||ri);
+        const isInCart=CART.some(c=>c.codigo===artKey);
+        html+=`<tr>
+          ${withCheckbox?`<td style="text-align:center"><input type="checkbox" class="muestra-check" data-art="${esc(String(r['Descripcion']||r['Descripción']||''))}" data-cod="${esc(artKey)}" ${isInCart?'checked':''} onchange="toggleCart(this)"></td>`:''}
+          <td>${esc(String(r['Descripcion']||r['Descripción']||''))}</td>
+          <td style="font-family:monospace;font-size:12px">${esc(String(r['Codigo']||''))}</td>
+          <td style="font-family:monospace;font-size:12px">${esc(String(r['Cod APRO']||''))}</td>
+          <td style="font-family:monospace;font-size:12px">${esc(String(r['EAN13']||''))}</td>
+          <td style="text-align:center">${esc(String(r['Cant x Caja']||''))}</td>
+          <td style="text-align:right">${fmtS(r['Pudahuel'])}</td><td style="text-align:right">${fmtS(r['Presencial'])}</td>
+          <td style="text-align:right">${fmtS(r['Antofagasta'])}</td><td style="text-align:right">${fmtS(r['Reserva APRO'])}</td>
+          <td style="text-align:right">${fmtS(r['Recepción']||r['Recepcion']||'')}</td>
+          <td style="background:rgba(200,169,122,0.04);font-size:12px">${fmtF(r['Fecha Prox Llegada'])}</td>
+          <td style="background:rgba(200,169,122,0.04);text-align:right">${esc(String(r['Ctd prox llegada (disponible)']??r['Ctd prox llegada (Disponible)']??'—'))}</td>
+        </tr>`;
+      });
+      html+='</tbody></table></div></div>';
+    });
+  });
+  return html+'</div></div>';
+}
+
+function showProductDetail(idx){
+  const modelo=PROD_INDEX[idx]; if(!modelo) return;
+  document.getElementById('prod-list-view').style.display='none';
+  document.getElementById('prod-detail-view').style.display='block';
+  document.getElementById('prod-detail-title').textContent=modelo;
+  document.getElementById('prod-detail-content').innerHTML=buildProductDetailHTML(modelo,false);
+}
+
+// ================================================================
+// MUESTRAS
+// ================================================================
+function showMuestraDetail(idx){
+  const modelo=MUEST_INDEX[idx]; if(!modelo) return;
+  document.getElementById('muest-list-view').style.display='none';
+  document.getElementById('muest-detail-view').style.display='block';
+  document.getElementById('muest-detail-title').textContent=modelo;
+  document.getElementById('muest-detail-content').innerHTML=buildProductDetailHTML(modelo,true);
+  updateCartBar();
+}
+
+function toggleCart(cb){
+  const art=cb.dataset.art;
+  const cod=cb.dataset.cod;
+  if(cb.checked){
+    if(!CART.some(c=>c.codigo===cod)) CART.push({articulo:art,codigo:cod});
+  } else {
+    CART=CART.filter(c=>c.codigo!==cod);
+  }
+  updateCartBadge();
+  updateCartBar();
+}
+
+function updateCartBadge(){
+  const badge=document.getElementById('cart-badge');
+  if(!badge) return;
+  if(CART.length>0){badge.style.display='inline-flex';badge.textContent=CART.length;}
+  else{badge.style.display='none';}
+}
+
+function updateCartBar(){
+  const bar=document.getElementById('cart-bar');
+  const num=document.getElementById('cart-num');
+  if(!bar) return;
+  if(CART.length>0){bar.style.display='flex';if(num)num.textContent=CART.length;}
+  else{bar.style.display='none';}
+}
+
+function openFinalizar(){
+  if(CART.length===0){showToast('No hay artículos seleccionados',true);return;}
+  // Pre-fill with session data
+  document.getElementById('m-vendedor').value=SESSION.nombre||'';
+  document.getElementById('m-sucursal').value=SESSION.sucursal||'';
+  // Show cart summary
+  let resumen='<table style="width:100%;font-size:13px;border-collapse:collapse">';
+  resumen+='<tr><th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--warm-gray)">Artículo</th><th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--warm-gray)">Código</th></tr>';
+  CART.forEach(c=>{resumen+=`<tr><td style="padding:4px 8px;border-bottom:1px solid var(--border)">${esc(c.articulo)}</td><td style="padding:4px 8px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px">${esc(c.codigo)}</td></tr>`;});
+  resumen+='</table>';
+  document.getElementById('muestra-resumen').innerHTML=resumen;
+  document.getElementById('muestra-error').style.display='none';
+
+  openModal('modal-muestra');
+}
+
+function confirmarMuestra(){
+  if(CART.length===0){showToast('No hay artículos seleccionados',true);return;}
+  // Validate form first
+  const vendedor=document.getElementById('m-vendedor').value.trim();
+  const empresa=document.getElementById('m-empresa').value.trim();
+  const telefono=document.getElementById('m-telefono').value.trim();
+  const direccion=document.getElementById('m-direccion').value.trim();
+  const err=document.getElementById('muestra-error'); err.style.display='none';
+  if(!vendedor||!empresa||!telefono||!direccion){
+    err.textContent='Por favor completa todos los campos antes de continuar';
+    err.style.display='block';
+    return;
+  }
+  // Build message
+  const sup = SESSION.supervisor && SESSION.supervisor.trim();
+  let msg = `Su solicitud de muestra será enviada a <strong>Jorge Silva</strong> (jorge.silva@vicsa.cl) con copia a su mail registrado (${SESSION.mail||'—'})`;
+  if(sup) msg += ` y con copia a su supervisor (${sup})`;
+  msg += '.';
+  document.getElementById('confirm-msg').innerHTML = msg;
+  openModal('modal-confirm-muestra');
+}
+
+async function doEnviarMuestra(){
+  const vendedor=document.getElementById('m-vendedor').value.trim();
+  const sucursal=document.getElementById('m-sucursal').value.trim();
+  const empresa=document.getElementById('m-empresa').value.trim();
+  const telefono=document.getElementById('m-telefono').value.trim();
+  const direccion=document.getElementById('m-direccion').value.trim();
+  const devolucion=document.getElementById('m-devolucion').checked?'Sí':'No';
+  const err=document.getElementById('muestra-error'); err.style.display='none';
+  if(!vendedor||!empresa||!telefono||!direccion){err.textContent='Por favor completa todos los campos';err.style.display='block';return;}
+
+  const fecha=new Date().toLocaleDateString('es-CL');
+  const articulosList=CART.map(c=>c.articulo).join(' | ');
+  const codigosList=CART.map(c=>c.codigo).join(' | ');
+
+  // Build email table
+  let tablaHTML='<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:13px">';
+  tablaHTML+='<tr style="background:#0E0E0E;color:#C8A97A"><th>Artículo</th><th>Código</th></tr>';
+  CART.forEach(c=>{tablaHTML+=`<tr><td>${c.articulo}</td><td>${c.codigo}</td></tr>`;});
+  tablaHTML+='</table>';
+
+  const mailBody=`Estimado ${vendedor}:<br><br>
+Usted ha solicitado una muestra Vicsa Safety Comercial Limitada mediante su KAM Jorge Silva para la empresa <strong>${empresa}</strong> con el siguiente detalle:<br><br>
+${tablaHTML}<br>
+<strong>Datos de envío:</strong><br>
+Sucursal: ${sucursal}<br>
+Teléfono: ${telefono}<br>
+Dirección: ${direccion}<br>
+Con devolución: ${devolucion}<br>
+Fecha: ${fecha}`;
+
+  showLoading('Enviando solicitud...','Procesando correo');
+
+  if(EJS.publicKey==='TU_PUBLIC_KEY'){
+    hideLoading();
+    closeModal('modal-muestra');
+    CART=[]; updateCartBadge(); updateCartBar();
+    showToast('✓ Muestra registrada (configura EmailJS para enviar correos)');
+    return;
+  }
+
+  try{
+    // Enviar a todos los destinatarios: usuario + KAM siempre + supervisor si existe
+    const recipients = [
+      {email: SESSION.mail, name: vendedor},
+      {email: KAM_MAIL,     name: 'Jorge Silva'},
+    ];
+    if(SESSION.supervisor && SESSION.supervisor.trim() && SESSION.supervisor !== SESSION.mail){
+      recipients.push({email: SESSION.supervisor.trim(), name: 'Supervisor'});
+    }
+    for(const rec of recipients){
+      if(!rec.email || !rec.email.trim()) continue;
+      await emailjs.send(EJS.serviceId, EJS.templateId, {
+        to_email: rec.email.trim(),
+        to_name:  rec.name,
+        subject:  `Solicitud de Muestra VICSA — ${empresa} — ${vendedor}`,
+        message:  mailBody
+      });
+    }
+    // Write to sheet
+    await writeMuestraToSheet({fecha,nombre:vendedor,sucursal,empresa,telefono,direccion,devolucion,articulos:articulosList,codigos:codigosList});
+    hideLoading();
+    closeModal('modal-muestra');
+    CART=[]; updateCartBadge(); updateCartBar();
+    showToast('✓ Solicitud enviada correctamente');
+  }catch(e){
+    hideLoading();
+    err.textContent='Error al enviar: '+(e.text||e.message||JSON.stringify(e));
+    err.style.display='block';
+  }
+}
+
+// ================================================================
+// ADMIN
+// ================================================================
+function renderAdminUsers(filter=''){
+  const list=document.getElementById('admin-users-list'); if(!list) return;
+  const nf=norm(filter);
+  const shown=USERS.filter(u=>!nf||norm(u.nombre).includes(nf)||norm(u.sucursal||'').includes(nf)||norm(u.mail).includes(nf));
+  if(!shown.length){list.innerHTML='<div style="padding:2rem;text-align:center;color:var(--warm-gray)">Sin resultados</div>';return;}
+  list.innerHTML=shown.map(u=>`
+    <div class="user-row ${editingUserId===u.id?'selected':''}" onclick="editUser(${u.id})">
+      <div>
+        <div class="user-name"><span class="status-dot ${u.activo?'active':'inactive'}"></span>${esc(u.nombre)}</div>
+        <div class="user-meta">${esc(u.sucursal||'')} · ${esc(u.mail)} · <span style="text-transform:uppercase;font-size:11px">${u.rol}</span></div>
+      </div>
+      <label class="toggle-switch" onclick="event.stopPropagation()">
+        <input type="checkbox" ${u.activo?'checked':''} onchange="toggleUser(${u.id},this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>`).join('');
+}
+
+function newUser(){
+  editingUserId=null;
+  document.getElementById('form-title').textContent='Nuevo usuario';
+  ['f-nombre','f-sucursal','f-mail','f-supervisor','f-pass'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-rol').value='user';
+  document.getElementById('btn-delete').style.display='none';
+  renderAdminUsers(document.getElementById('admin-search').value);
+}
+function editUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u) return;
+  editingUserId=id;
+  document.getElementById('form-title').textContent='Editar usuario';
+  document.getElementById('f-nombre').value=u.nombre;
+  document.getElementById('f-sucursal').value=u.sucursal||'';
+  document.getElementById('f-mail').value=u.mail;
+  document.getElementById('f-supervisor').value=u.supervisor||'';
+  document.getElementById('f-pass').value=u.pass;
+  document.getElementById('f-rol').value=u.rol;
+  document.getElementById('btn-delete').style.display='';
+  renderAdminUsers(document.getElementById('admin-search').value);
+}
+function saveUser(){
+  const nombre=document.getElementById('f-nombre').value.trim();
+  const sucursal=document.getElementById('f-sucursal').value.trim();
+  const mail=document.getElementById('f-mail').value.trim();
+  const supervisor=document.getElementById('f-supervisor').value.trim();
+  const pass=document.getElementById('f-pass').value;
+  const rol=document.getElementById('f-rol').value;
+  if(!nombre||!mail||!pass){showToast('Nombre, correo y contraseña son requeridos',true);return;}
+  if(editingUserId){
+    Object.assign(USERS.find(x=>x.id===editingUserId),{nombre,sucursal,mail,supervisor,pass,rol});
+  } else {
+    USERS.push({id:Date.now(),nombre,sucursal,mail,supervisor,pass,mustChange:true,rol,activo:true});
+  }
+  saveUsers(); newUser(); showToast('Usuario guardado — deberá cambiar su contraseña al primer ingreso');
+}
+function cancelUser(){newUser();}
+function deleteUser(){
+  if(!editingUserId) return;
+  if(!confirm('¿Eliminar este usuario?')) return;
+  USERS=USERS.filter(x=>x.id!==editingUserId);
+  saveUsers(); newUser(); showToast('Usuario eliminado');
+}
+function toggleUser(id,val){const u=USERS.find(x=>x.id===id);if(u){u.activo=val;saveUsers();}}
+
+// ================================================================
+// HELPERS
+// ================================================================
+function copyAndTrack(ov, event){
+  if(event) event.stopPropagation();
+  navigator.clipboard.writeText(ov).catch(()=>{});
+  window.open('https://ww4.spytrack.cl/vicsa/buscarov','_blank');
+  showToast('OV '+ov+' copiada — pégala en el buscador de tracking');
+}
+
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtS(v){if(v===''||v===null||v===undefined)return '<span class="muted">—</span>';const s=String(v).trim();const neg=s.startsWith('(')||s.startsWith('-');const n=parseFloat(s.replace(/[()]/g,''));if(!isNaN(n)&&(n<0||neg))return `<span class="neg">-${Math.abs(n)}</span>`;return esc(s);}
+function fmtN(v){if(v===''||v===null||v===undefined)return '<span class="muted">—</span>';const n=parseFloat(v);if(!isNaN(n)&&n<0)return `<span class="neg">${n}</span>`;return esc(String(v));}
+function fmtF(v){
+  if(!v||v==='') return '<span class="muted">—</span>';
+  if(v instanceof Date) return esc(v.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}));
+  const s=String(v).trim();
+  // Handle Google Sheets Date(year,month,day) format
+  const gm=s.match(/^Date\((\d+),(\d+),(\d+)\)/);
+  if(gm){ const d=new Date(parseInt(gm[1]),parseInt(gm[2]),parseInt(gm[3])); return esc(d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'})); }
+  // Handle ISO date
+  if(s.match(/^\d{4}-\d{2}-\d{2}/)) return esc(new Date(s).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}));
+  // Already formatted or unknown
+  if(s.includes('Date(')) return '<span class="muted">—</span>';
+  return esc(s);
+}
+function fmtP(v){if(!v)return '';const n=parseFloat(String(v).replace(/[^0-9.]/g,''));if(isNaN(n))return esc(String(v));return '$'+n.toLocaleString('es-CL');}
+function showLoading(msg,sub){document.getElementById('loading-msg').textContent=msg;document.getElementById('loading-sub').textContent=sub||'';document.getElementById('loading-overlay').style.display='flex';}
+function hideLoading(){document.getElementById('loading-overlay').style.display='none';}
+function showToast(msg,isError=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isError?' error':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000);}
+</script>
+</body>
+</html>  if(fm['__SF__']){
     const sfr=fm['__SF__'][0];
     const ovSF=String(sfr['Orden de Venta']||'').trim();
     const trackBtnSF=ovSF?`<button onclick="copyAndTrack('${ovSF}',event)"
@@ -917,6 +1314,7 @@ function showOCDetail(idx){
       <div><div class="fh-label">Fecha OV</div><div class="fh-value">${fmtF(sfr['Fecha orden de venta'])}</div></div>
     </div>${buildOCTable(fm['__SF__'])}</div>`;
   }
+  
   document.getElementById('oc-detail-content').innerHTML=html;
 }
 

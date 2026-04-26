@@ -670,6 +670,12 @@ main{flex:1;padding:2rem}
           <div class="form-field"><label class="form-label">Correo</label><input class="form-input" id="f-mail" type="email" placeholder="correo@empresa.cl"></div>
           <div class="form-field"><label class="form-label">Mail Supervisor</label><input class="form-input" id="f-supervisor" type="email" placeholder="supervisor@empresa.cl"></div>
           <div class="form-field"><label class="form-label">Contraseña</label><input class="form-input" id="f-pass" type="password" placeholder="Contraseña inicial"></div>
+          <div class="form-field"><label class="form-label">Género</label>
+            <select class="form-input" id="f-genero" style="cursor:pointer">
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+            </select>
+          </div>
           <div class="form-field"><label class="form-label">Rol</label>
             <select class="form-input" id="f-rol" style="cursor:pointer">
               <option value="user">Usuario</option>
@@ -773,6 +779,7 @@ async function loadUsersFromSheet(){
           sucursal: String(u['Sucursal']||u['sucursal']||''),
           supervisor: String(u['Mail Supervisor']||u['supervisor']||'').trim(),
           pass: String(u['Contraseña']||u['pass']||''),
+          genero: String(u['Genero']||u['genero']||'M'),
           rol: String(u['Rol']||u['rol']||'user').toLowerCase(),
           activo: String(u['Activo']||u['activo']||'Si').toLowerCase()!=='no',
           mustChange: String(u['Cambiar Clave']||u['mustChange']||'No').toLowerCase()==='si'
@@ -868,7 +875,7 @@ async function doLogin(){
     openModal('modal-force-change');
     return;
   }
-  SESSION={id:user.id,nombre:user.nombre,rol:user.rol,sucursal:user.sucursal,mail:user.mail,supervisor:user.supervisor||''};
+  SESSION={id:user.id,nombre:user.nombre,rol:user.rol,sucursal:user.sucursal,mail:user.mail,supervisor:user.supervisor||'',genero:user.genero||'M'};
   sessionStorage.setItem('apro_session',JSON.stringify(SESSION));
   startApp();
 }
@@ -883,7 +890,7 @@ async function doForceChange(){
   pendingUser.pass=h1; pendingUser.mustChange=false;
   saveUsers();
   saveUserToSheet({id:pendingUser.id,Nombre:pendingUser.nombre,Mail:pendingUser.mail,Sucursal:pendingUser.sucursal,'Mail Supervisor':pendingUser.supervisor||'','Contraseña':h1,Rol:pendingUser.rol,Activo:'Si','Cambiar Clave':'No'});
-  SESSION={id:pendingUser.id,nombre:pendingUser.nombre,rol:pendingUser.rol,sucursal:pendingUser.sucursal,mail:pendingUser.mail,supervisor:pendingUser.supervisor||''};
+  SESSION={id:pendingUser.id,nombre:pendingUser.nombre,rol:pendingUser.rol,sucursal:pendingUser.sucursal,mail:pendingUser.mail,supervisor:pendingUser.supervisor||'',genero:pendingUser.genero||'M'};
   sessionStorage.setItem('apro_session',JSON.stringify(SESSION));
   closeModal('modal-force-change');
   pendingUser=null;
@@ -1368,15 +1375,24 @@ async function doEnviarMuestra(){
   CART.forEach(c=>{tablaHTML+=`<tr><td>${c.articulo}</td><td>${c.codigo}</td></tr>`;});
   tablaHTML+='</table>';
 
-  const mailBody=`Estimado ${vendedor}:<br><br>
-Usted ha solicitado una muestra Vicsa Safety Comercial Limitada mediante su KAM Jorge Silva para la empresa <strong>${empresa}</strong> con el siguiente detalle:<br><br>
-${tablaHTML}<br>
-<strong>Datos de envío:</strong><br>
-Sucursal: ${sucursal}<br>
-Teléfono: ${telefono}<br>
-Dirección: ${direccion}<br>
-Con devolución: ${devolucion}<br>
-Fecha: ${fecha}`;
+  const tratamiento=(SESSION.genero||'M')==='F'?'Estimada':'Estimado';
+  const mailBody=`<div style="font-family:sans-serif;color:#333;max-width:600px">
+  <h2 style="font-family:Georgia,serif;font-weight:400;color:#0E0E0E;border-bottom:2px solid #C8A97A;padding-bottom:10px">Solicitud de Muestra — Vicsa Safety</h2>
+  <p>${tratamiento} <strong>${vendedor}</strong>,</p>
+  <p>Su solicitud de muestra para la empresa <strong>${empresa}</strong> ha sido recibida y está siendo procesada por su KAM <strong>Jorge Silva</strong>.</p>
+  <h3 style="font-family:Georgia,serif;font-weight:400;color:#0E0E0E;margin-top:24px">Artículos solicitados</h3>
+  ${tablaHTML}
+  <h3 style="font-family:Georgia,serif;font-weight:400;color:#0E0E0E;margin-top:24px">Datos de envío</h3>
+  <table style="font-size:13px;border-collapse:collapse;width:100%">
+    <tr><td style="padding:6px 0;color:#666;width:140px">📍 Sucursal</td><td style="padding:6px 0"><strong>${sucursal}</strong></td></tr>
+    <tr><td style="padding:6px 0;color:#666">📞 Teléfono</td><td style="padding:6px 0"><strong>${telefono}</strong></td></tr>
+    <tr><td style="padding:6px 0;color:#666">🏠 Dirección</td><td style="padding:6px 0"><strong>${direccion}</strong></td></tr>
+    <tr><td style="padding:6px 0;color:#666">🔄 Con devolución</td><td style="padding:6px 0"><strong>${devolucion}</strong></td></tr>
+    <tr><td style="padding:6px 0;color:#666">📅 Fecha</td><td style="padding:6px 0"><strong>${fecha}</strong></td></tr>
+  </table>
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+  <p style="font-size:11px;color:#999;letter-spacing:0.08em;text-transform:uppercase">VICSA Safety Comercial Limitada · Portal APRO</p>
+</div>`;
 
   showLoading('Enviando solicitud...','Procesando correo');
 
@@ -1444,6 +1460,7 @@ function newUser(){
   editingUserId=null;
   document.getElementById('form-title').textContent='Nuevo usuario';
   ['f-nombre','f-sucursal','f-mail','f-supervisor','f-pass'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-genero').value='M';
   document.getElementById('f-rol').value='user';
   document.getElementById('btn-delete').style.display='none';
   renderAdminUsers(document.getElementById('admin-search').value);
@@ -1457,6 +1474,7 @@ function editUser(id){
   document.getElementById('f-mail').value=u.mail;
   document.getElementById('f-supervisor').value=u.supervisor||'';
   document.getElementById('f-pass').value=u.pass;
+  document.getElementById('f-genero').value=u.genero||'M';
   document.getElementById('f-rol').value=u.rol;
   document.getElementById('btn-delete').style.display='';
   renderAdminUsers(document.getElementById('admin-search').value);
@@ -1467,18 +1485,17 @@ function saveUser(){
   const mail=document.getElementById('f-mail').value.trim();
   const supervisor=document.getElementById('f-supervisor').value.trim();
   const pass=document.getElementById('f-pass').value;
+  const genero=document.getElementById('f-genero').value;
   const rol=document.getElementById('f-rol').value;
   if(!nombre||!mail||!pass){showToast('Nombre, correo y contraseña son requeridos',true);return;}
-  // Hash password before saving
   hashPass(pass).then(hashedPass => {
     let savedUser;
     if(editingUserId){
       savedUser = USERS.find(x=>x.id===editingUserId);
-      // Only update password hash if password field was changed
       const newPass = savedUser.pass !== pass ? hashedPass : savedUser.pass;
-      Object.assign(savedUser,{nombre,sucursal,mail,supervisor,pass:newPass,rol});
+      Object.assign(savedUser,{nombre,sucursal,mail,supervisor,pass:newPass,genero,rol});
     } else {
-      savedUser = {id:Date.now(),nombre,sucursal,mail,supervisor,pass:hashedPass,mustChange:true,rol,activo:true};
+      savedUser = {id:Date.now(),nombre,sucursal,mail,supervisor,pass:hashedPass,genero,mustChange:true,rol,activo:true};
       USERS.push(savedUser);
     }
     saveUsers();
@@ -1489,13 +1506,14 @@ function saveUser(){
       Sucursal: savedUser.sucursal,
       'Mail Supervisor': savedUser.supervisor||'',
       'Contraseña': savedUser.pass,
+      Genero: savedUser.genero||'M',
       Rol: savedUser.rol,
       Activo: savedUser.activo?'Si':'No',
       'Cambiar Clave': savedUser.mustChange?'Si':'No'
     });
     newUser(); showToast('Usuario guardado correctamente');
   });
-  return; // async, handled in .then()
+  return;
 }
 function cancelUser(){newUser();}
 function deleteUser(){

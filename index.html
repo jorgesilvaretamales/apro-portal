@@ -406,8 +406,22 @@ main{flex:1;padding:2rem}
         <div class="search-header">
           <div class="search-title">Buscar OC</div>
           <div class="search-wrap">
-            <input class="search-input" id="oc-search" placeholder="Sucursal, OC, OV, Factura, Código, Modelo..." oninput="searchOC(this.value)">
+            <input class="search-input" id="oc-search" placeholder="Sucursal, OC, OV, Factura, Código, Artículo..." oninput="searchOC(this.value)">
             <span class="search-icon">⌕</span>
+          </div>
+          <div style="display:flex;gap:1.2rem;align-items:center;flex-shrink:0">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--warm-gray)">
+              <input type="radio" name="oc-filter" value="todas" checked onchange="searchOC(document.getElementById('oc-search').value)"
+                style="accent-color:var(--accent-dark);cursor:pointer"> Todas
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--warm-gray)">
+              <input type="radio" name="oc-filter" value="pendientes" onchange="searchOC(document.getElementById('oc-search').value)"
+                style="accent-color:var(--accent-dark);cursor:pointer"> Pendientes
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--warm-gray)">
+              <input type="radio" name="oc-filter" value="facturado" onchange="searchOC(document.getElementById('oc-search').value)"
+                style="accent-color:var(--accent-dark);cursor:pointer"> Facturado
+            </label>
           </div>
         </div>
         <div id="oc-results"></div>
@@ -729,31 +743,77 @@ function renderOCEmpty(){
   document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Ingresa un término de búsqueda</h3><p>Sucursal, orden de compra, orden de venta, factura, código o modelo.</p></div>';
 }
 
+function getOCFilter(){
+  const sel = document.querySelector('input[name="oc-filter"]:checked');
+  return sel ? sel.value : 'todas';
+}
+
+function applyLineFilter(rows, filtro){
+  if(filtro === 'pendientes'){
+    return rows.filter(r => {
+      const v = parseFloat(String(r['Cantidad Pendiente']||'').replace(/[()]/g,''));
+      return !isNaN(v) && v > 0;
+    });
+  }
+  if(filtro === 'facturado'){
+    return rows.filter(r => {
+      const v = norm(String(r['Fecha orden de venta']||''));
+      return v === 'facturado';
+    });
+  }
+  return rows;
+}
+
 function searchOC(q){
-  if(!q.trim()){renderOCEmpty();return;}
+  if(!q.trim()&&getOCFilter()==='todas'){renderOCEmpty();return;}
   if(!DB.ventas.length){document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin datos</h3><p>Presiona ⟳ Sincronizar.</p></div>';return;}
-  const nq=norm(q);
-  const fields=['Sucursal','Orden de Compra','Orden de Venta','N° Factura','Codigo','Modelo'];
-  const matches=DB.ventas.filter(r=>fields.some(f=>norm(r[f]).includes(nq)));
-  const groups={};
-  matches.forEach(r=>{const oc=String(r['Orden de Compra']||'(sin OC)');if(!groups[oc])groups[oc]={rows:[],sucursal:r['Sucursal'],oc};groups[oc].rows.push(r);});
-  const keys=Object.keys(groups);
-  if(!keys.length){document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin resultados</h3></div>';return;}
-  OC_INDEX=keys;
-  let html='<div class="results-list">';
-  keys.forEach((oc,idx)=>{
-    const g=groups[oc];
-    const facts=[...new Set(g.rows.map(r=>r['N° Factura']).filter(f=>f&&norm(String(f))!=='sin facturar'))];
-    const fl=facts.length?facts.slice(0,2).join(', ')+(facts.length>2?'…':''):'Sin facturar';
-    html+=`<div class="result-item" onclick="showOCDetail(${idx})">
+
+  const filtro = getOCFilter();
+  const words = norm(q).split(/\s+/).filter(Boolean);
+  const fields = ['Sucursal','Orden de Compra','Orden de Venta','N° Factura','Codigo','Modelo',
+                  'Articulo','Artículo','Descripcion','Descripción'];
+
+  // Filter lines: must match ALL words across ANY of the fields
+  let matches = DB.ventas.filter(r => {
+    if(!words.length) return true;
+    const hay = fields.map(f => norm(r[f])).join(' ');
+    return words.every(w => hay.includes(w));
+  });
+
+  // Apply radio filter
+  matches = applyLineFilter(matches, filtro);
+
+  // Group by OC
+  const groups = {};
+  matches.forEach(r => {
+    const oc = String(r['Orden de Compra']||'(sin OC)');
+    if(!groups[oc]) groups[oc] = {rows:[], sucursal:r['Sucursal'], oc};
+    groups[oc].rows.push(r);
+  });
+
+  const keys = Object.keys(groups);
+  if(!keys.length){
+    document.getElementById('oc-results').innerHTML='<div class="no-data"><h3>Sin resultados</h3><p>Prueba con otros términos o cambia el filtro.</p></div>';
+    return;
+  }
+  OC_INDEX = keys;
+  let html = '<div class="results-list">';
+  keys.forEach((oc, idx) => {
+    const g = groups[oc];
+    const facts = [...new Set(g.rows.map(r=>r['N° Factura']).filter(f=>f&&norm(String(f))!=='sin facturar'))];
+    const fl = facts.length ? facts.slice(0,2).join(', ')+(facts.length>2?'…':'') : 'Sin facturar';
+    const pendTotal = g.rows.reduce((s,r)=>{const v=parseFloat(String(r['Cantidad Pendiente']||'').replace(/[()]/g,''));return s+(isNaN(v)?0:v);},0);
+    html += `<div class="result-item" onclick="showOCDetail(${idx})">
       <div class="result-meta">
         <div><div class="result-label">Sucursal</div><div class="result-value">${esc(g.sucursal)}</div></div>
         <div><div class="result-label">Orden de Compra</div><div class="result-value">${esc(oc)}</div></div>
         <div><div class="result-label">Facturas</div><div class="result-value"><span class="badge">${esc(fl)}</span></div></div>
         <div><div class="result-label">Líneas</div><div class="result-value">${g.rows.length}</div></div>
+        ${filtro==='pendientes'?`<div><div class="result-label">Total Pendiente</div><div class="result-value" style="color:var(--accent-dark);font-weight:600">${pendTotal}</div></div>`:''}
       </div><span class="result-arrow">›</span></div>`;
   });
-  document.getElementById('oc-results').innerHTML=html+'</div>';
+  html += '</div>';
+  document.getElementById('oc-results').innerHTML = html;
 }
 
 function showOCDetail(idx){

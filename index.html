@@ -1466,7 +1466,7 @@ function newUser(){
   renderAdminUsers(document.getElementById('admin-search').value);
 }
 function editUser(id){
-  const u=USERS.find(x=>x.id===id); if(!u) return;
+  const u=USERS.find(x=>String(x.id)===String(id)); if(!u) return;
   editingUserId=id;
   document.getElementById('form-title').textContent='Editar usuario';
   document.getElementById('f-nombre').value=u.nombre;
@@ -1520,13 +1520,13 @@ function deleteUser(){
   if(!editingUserId) return;
   if(!confirm('¿Eliminar este usuario?')) return;
   const delId = editingUserId;
-  USERS=USERS.filter(x=>x.id!==delId);
+  USERS=USERS.filter(x=>String(x.id)!==String(delId));
   saveUsers();
   deleteUserFromSheet(delId);
   newUser(); showToast('Usuario eliminado');
 }
 function toggleUser(id,val){
-  const u=USERS.find(x=>x.id===id);
+  const u=USERS.find(x=>String(x.id)===String(id));
   if(u){
     u.activo=val; saveUsers();
     saveUserToSheet({id:u.id,Nombre:u.nombre,Mail:u.mail,Sucursal:u.sucursal,'Mail Supervisor':u.supervisor||'','Contraseña':u.pass,Rol:u.rol,Activo:val?'Si':'No','Cambiar Clave':u.mustChange?'Si':'No'});

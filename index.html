@@ -421,7 +421,7 @@ main{flex:1;padding:2rem}
     <!-- Bottom -->
     <div style="height:1px;background:#141414"></div>
     <div style="padding:0.6rem 1.5rem;text-align:center">
-      <div style="font-size:9px;color:#555;letter-spacing:0.15em;text-transform:uppercase">VICSA Safety Comercial Limitada · 2025</div>
+      <div style="font-size:9px;color:#555;letter-spacing:0.15em;text-transform:uppercase">VICSA Safety Comercial Limitada · <span id="footer-year"></span></div>
     </div>
 
   </div>
@@ -1531,6 +1531,12 @@ function fmtF(v){
 function fmtP(v){if(!v)return '';const n=parseFloat(String(v).replace(/[^0-9.]/g,''));if(isNaN(n))return esc(String(v));return '$'+n.toLocaleString('es-CL');}
 function showLoading(msg,sub){document.getElementById('loading-msg').textContent=msg;document.getElementById('loading-sub').textContent=sub||'';document.getElementById('loading-overlay').style.display='flex';}
 function hideLoading(){document.getElementById('loading-overlay').style.display='none';}
+// Auto year
+document.addEventListener('DOMContentLoaded',()=>{
+  const y=document.getElementById('footer-year');
+  if(y) y.textContent=new Date().getFullYear();
+});
+
 function showToast(msg,isError=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isError?' error':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000);}
 </script>
 </body>

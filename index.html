@@ -14,6 +14,7 @@
   --success:#2E7D52;--surface:#FFFFFF;--surface2:#F5F2EE;
 }
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--obsidian);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body.auth-open{overflow:hidden;height:100vh}
 h1,h2,h3,h4{font-family:'Cormorant Garamond',serif}
 
 #loading-overlay{position:fixed;inset:0;background:rgba(14,14,14,0.75);display:none;align-items:center;justify-content:center;z-index:2000}
@@ -333,9 +334,8 @@ main{flex:1;padding:2rem}
 
     <!-- Bottom -->
     <div style="height:1px;background:#141414"></div>
-    <div style="padding:0.6rem 1.5rem;text-align:center;display:flex;justify-content:space-between;align-items:center">
+    <div style="padding:0.6rem 1.5rem;text-align:center">
       <div style="font-size:9px;color:#2A2A2A;letter-spacing:0.15em;text-transform:uppercase">VICSA Safety Comercial Limitada · 2025</div>
-      <div onclick="localStorage.clear();location.reload();" style="font-size:9px;color:#333;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border:1px solid #222;border-radius:2px" title="Limpiar caché local">↺ Reset</div>
     </div>
 
   </div>
@@ -658,32 +658,40 @@ async function deleteUserFromSheet(id){
 
 async function loadUsersFromSheet(){
   try{
-    // Apps Script requires GET with URL params to avoid CORS preflight issues
-    const url = APPS_SCRIPT_URL + '?action=getUsuarios';
-    const r = await fetch(url);
+    const url = APPS_SCRIPT_URL + '?action=getUsuarios&t=' + Date.now();
+    const r = await fetch(url, {cache:'no-store'});
     const text = await r.text();
-    // Apps Script sometimes returns JSONP-like or HTML on error
-    if(!text || text.trim().startsWith('<')) {
-      console.warn('Sheet returned HTML, using cache');
+    // Reject HTML responses (Google login redirects, error pages)
+    const trimmed = text.trim();
+    if(!trimmed || trimmed.startsWith('<') || trimmed.startsWith('<!')) {
+      console.warn('Sheet returned HTML - usando caché local');
       return false;
     }
-    const data = JSON.parse(text);
-    if(data.ok && data.users && data.users.length){
-      USERS = data.users.map(u=>({
-        id: String(u['id']||u['Id']||Date.now()),
-        nombre: String(u['Nombre']||u['nombre']||''),
-        mail: String(u['Mail']||u['mail']||'').trim().toLowerCase(),
-        sucursal: String(u['Sucursal']||u['sucursal']||''),
-        supervisor: String(u['Mail Supervisor']||u['supervisor']||'').trim(),
-        pass: String(u['Contraseña']||u['pass']||''),
-        rol: String(u['Rol']||u['rol']||'user').toLowerCase(),
-        activo: String(u['Activo']||u['activo']||'Si').toLowerCase()!=='no',
-        mustChange: String(u['Cambiar Clave']||u['mustChange']||'No').toLowerCase()==='si'
-      }));
-      localStorage.setItem('apro_users', JSON.stringify(USERS));
-      return true;
+    let data;
+    try { data = JSON.parse(trimmed); }
+    catch(pe) { console.warn('JSON parse error:', pe); return false; }
+
+    if(data.ok && Array.isArray(data.users) && data.users.length){
+      const mapped = data.users
+        .filter(u => u['Mail'] || u['mail']) // skip empty rows
+        .map(u=>({
+          id: String(u['id']||u['Id']||Date.now()),
+          nombre: String(u['Nombre']||u['nombre']||''),
+          mail: String(u['Mail']||u['mail']||'').trim().toLowerCase(),
+          sucursal: String(u['Sucursal']||u['sucursal']||''),
+          supervisor: String(u['Mail Supervisor']||u['supervisor']||'').trim(),
+          pass: String(u['Contraseña']||u['pass']||''),
+          rol: String(u['Rol']||u['rol']||'user').toLowerCase(),
+          activo: String(u['Activo']||u['activo']||'Si').toLowerCase()!=='no',
+          mustChange: String(u['Cambiar Clave']||u['mustChange']||'No').toLowerCase()==='si'
+        }));
+      if(mapped.length > 0){
+        USERS = mapped;
+        localStorage.setItem('apro_users', JSON.stringify(USERS));
+        return true;
+      }
     }
-  }catch(e){ console.warn('Sheet load error:',e); }
+  }catch(e){ console.warn('Sheet load error:',e.message); }
   return false;
 }
 
@@ -831,6 +839,7 @@ async function doRecover(){
 
 function startApp(){
   document.getElementById('auth-screen').style.display='none';
+  document.body.classList.remove('auth-open');
   document.getElementById('app').style.display='flex';
   document.getElementById('user-badge').textContent=SESSION.nombre+' · '+SESSION.sucursal;
   document.getElementById('nav-admin').style.display='none';
@@ -846,9 +855,12 @@ function doLogout(){
   sessionStorage.removeItem('apro_session');
   document.getElementById('app').style.display='none';
   document.getElementById('auth-screen').style.display='flex';
+  document.body.classList.add('auth-open');
   updateCartBadge();
 }
 
+// Lock scroll on auth screen by default
+document.body.classList.add('auth-open');
 // Load users from Sheet on page load, then check session
 (async function init(){
   await loadUsersFromSheet();

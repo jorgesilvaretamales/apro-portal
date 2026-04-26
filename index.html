@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=5.0, user-scalable=yes">
 <title>APRO Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -13,7 +13,7 @@
   --border:#E8E4DF;--accent:#C8A97A;--accent-dark:#A07840;--danger:#C0392B;
   --success:#2E7D52;--surface:#FFFFFF;--surface2:#F5F2EE;
 }
-body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--obsidian);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--obsidian);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;overflow-x:hidden;touch-action:pan-x pan-y pinch-zoom}
 body.auth-open{overflow:hidden;height:100vh}
 h1,h2,h3,h4{font-family:'Cormorant Garamond',serif}
 
@@ -940,15 +940,29 @@ function startApp(){
   document.getElementById('user-badge').textContent=SESSION.nombre+' · '+SESSION.sucursal;
   document.getElementById('nav-admin').style.display='none';
   if(SESSION.rol==='admin') document.getElementById('nav-admin').style.display='';
-  renderAdminUsers(); showSection('productos');
+  // Clear all searches for fresh start
+  ['oc-search','prod-search','muest-search','admin-search'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  renderOCEmpty();
   document.getElementById('prod-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Ingresa modelo, código, color o género.</p></div>';
   document.getElementById('muest-results').innerHTML='<div class="no-data"><h3>Busca un producto</h3><p>Selecciona los artículos que deseas solicitar como muestra.</p></div>';
+  renderAdminUsers(); showSection('productos');
   syncData();
 }
 
 function doLogout(){
   SESSION=null; CART=[];
   sessionStorage.removeItem('apro_session');
+  // Clear all search fields and results
+  const fields=['oc-search','prod-search','muest-search','admin-search'];
+  fields.forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const results=['oc-results','prod-results','muest-results'];
+  results.forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});
+  // Reset detail views
+  backToList('oc'); backToList('prod'); backToList('muest');
+  // Reset DB so next user gets fresh data
+  DB={ventas:[],base:[]};
   document.getElementById('app').style.display='none';
   document.getElementById('auth-screen').style.display='flex';
   document.body.classList.add('auth-open');

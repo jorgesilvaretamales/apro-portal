@@ -658,14 +658,17 @@ async function deleteUserFromSheet(id){
 
 async function loadUsersFromSheet(){
   try{
-    const r = await fetch(APPS_SCRIPT_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'getUsuarios'})
-    });
-    const data = await r.json();
+    // Apps Script requires GET with URL params to avoid CORS preflight issues
+    const url = APPS_SCRIPT_URL + '?action=getUsuarios';
+    const r = await fetch(url);
+    const text = await r.text();
+    // Apps Script sometimes returns JSONP-like or HTML on error
+    if(!text || text.trim().startsWith('<')) {
+      console.warn('Sheet returned HTML, using cache');
+      return false;
+    }
+    const data = JSON.parse(text);
     if(data.ok && data.users && data.users.length){
-      // Sheet always wins — overwrite localStorage completely
       USERS = data.users.map(u=>({
         id: String(u['id']||u['Id']||Date.now()),
         nombre: String(u['Nombre']||u['nombre']||''),

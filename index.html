@@ -631,7 +631,57 @@ if(!USERS.length){
   USERS=[{id:1,nombre:'Administrador',sucursal:'Central',mail:'admin@apro.cl',supervisor:'',pass:'admin123',mustChange:false,rol:'admin',activo:true}];
   saveUsers();
 }
-function saveUsers(){localStorage.setItem('apro_users',JSON.stringify(USERS));}
+function saveUsers(){
+  localStorage.setItem('apro_users',JSON.stringify(USERS));
+}
+
+async function saveUserToSheet(user){
+  try{
+    await fetch(APPS_SCRIPT_URL,{
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'saveUsuario', user})
+    });
+  }catch(e){ console.warn('Sheet write error:',e); }
+}
+
+async function deleteUserFromSheet(id){
+  try{
+    await fetch(APPS_SCRIPT_URL,{
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'deleteUsuario', id})
+    });
+  }catch(e){ console.warn('Sheet delete error:',e); }
+}
+
+async function loadUsersFromSheet(){
+  try{
+    const r = await fetch(APPS_SCRIPT_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'getUsuarios'})
+    });
+    const data = await r.json();
+    if(data.ok && data.users && data.users.length){
+      // Map sheet columns to user objects
+      USERS = data.users.map(u=>({
+        id: u['id'] || Date.now(),
+        nombre: u['Nombre'] || u['nombre'] || '',
+        mail: u['Mail'] || u['mail'] || '',
+        sucursal: u['Sucursal'] || u['sucursal'] || '',
+        supervisor: u['Mail Supervisor'] || u['supervisor'] || '',
+        pass: u['Contraseña'] || u['pass'] || 'apro2024',
+        rol: u['Rol'] || u['rol'] || 'user',
+        activo: String(u['Activo']||u['activo']||'Si').toLowerCase()!=='no',
+        mustChange: String(u['Cambiar Clave']||u['mustChange']||'No').toLowerCase()==='si'
+      }));
+      saveUsers(); // sync to localStorage as cache
+      return true;
+    }
+  }catch(e){ console.warn('Sheet load error:',e); }
+  return false;
+}
 
 // Init EmailJS
 if(EJS.publicKey!=='TU_PUBLIC_KEY') emailjs.init(EJS.publicKey);
@@ -675,7 +725,7 @@ async function syncData(){
 // Write a row to Google Sheets via Apps Script (requires deployment)
 // For now, muestras are stored locally and sent via email
 // To enable sheet writing, deploy an Apps Script Web App and set APPS_SCRIPT_URL
-const APPS_SCRIPT_URL = ''; // Set this later
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzqmbaL9bcoThUto9Bss-lCD4Ydle2wNgv2DqbaR-ziUGHfRgrm9TWomRLCgCP7WE5KQw/exec';
 
 async function writeMuestraToSheet(data){
   if(!APPS_SCRIPT_URL) return; // skip if not configured
@@ -697,11 +747,15 @@ function showAuthPanel(panel){
   if(panel==='recover') openModal('modal-recover');
 }
 
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('login-user').value.trim();
   const p=document.getElementById('login-pass').value;
-  const user=USERS.find(x=>x.activo&&(x.mail===u||x.nombre===u)&&x.pass===p);
   const err=document.getElementById('login-error'); err.style.display='none';
+  // Reload users from sheet to get latest data
+  showLoading('Verificando acceso...','');
+  await loadUsersFromSheet();
+  hideLoading();
+  const user=USERS.find(x=>x.activo&&(x.mail===u||x.nombre===u)&&x.pass===p);
   if(!user){err.textContent='Usuario o contraseña incorrectos';err.style.display='block';return;}
   if(user.mustChange){
     pendingUser=user;
@@ -721,6 +775,7 @@ function doForceChange(){
   if(n1!==n2){err.textContent='Las contraseñas no coinciden';err.style.display='block';return;}
   pendingUser.pass=n1; pendingUser.mustChange=false;
   saveUsers();
+  saveUserToSheet({id:pendingUser.id,Nombre:pendingUser.nombre,Mail:pendingUser.mail,Sucursal:pendingUser.sucursal,'Mail Supervisor':pendingUser.supervisor||'','Contraseña':n1,Rol:pendingUser.rol,Activo:'Si','Cambiar Clave':'No'});
   SESSION={id:pendingUser.id,nombre:pendingUser.nombre,rol:pendingUser.rol,sucursal:pendingUser.sucursal,mail:pendingUser.mail,supervisor:pendingUser.supervisor||''};
   sessionStorage.setItem('apro_session',JSON.stringify(SESSION));
   closeModal('modal-force-change');
@@ -742,6 +797,7 @@ function doChangePass(){
   if(n1.length<6){err.textContent='Mínimo 6 caracteres';err.style.display='block';return;}
   if(n1!==n2){err.textContent='Las contraseñas no coinciden';err.style.display='block';return;}
   user.pass=n1; user.mustChange=false; saveUsers();
+  saveUserToSheet({id:user.id,Nombre:user.nombre,Mail:user.mail,Sucursal:user.sucursal,'Mail Supervisor':user.supervisor||'','Contraseña':n1,Rol:user.rol,Activo:user.activo?'Si':'No','Cambiar Clave':'No'});
   ok.textContent='Contraseña actualizada correctamente'; ok.style.display='block';
   setTimeout(()=>closeModal('modal-change'),1500);
 }
@@ -789,7 +845,22 @@ function doLogout(){
   updateCartBadge();
 }
 
-if(SESSION) startApp();
+// Load users from Sheet on page load, then check session
+(async function init(){
+  await loadUsersFromSheet();
+  if(SESSION){
+    // Refresh session user data from loaded users
+    const u = USERS.find(x=>x.id==SESSION.id||x.mail===SESSION.mail);
+    if(u && u.activo){
+      SESSION.rol = u.rol;
+      SESSION.supervisor = u.supervisor||'';
+      sessionStorage.setItem('apro_session',JSON.stringify(SESSION));
+      startApp();
+    } else if(!u){
+      startApp(); // fallback
+    }
+  }
+})();
 
 // ================================================================
 // MODALS
@@ -1272,21 +1343,45 @@ function saveUser(){
   const pass=document.getElementById('f-pass').value;
   const rol=document.getElementById('f-rol').value;
   if(!nombre||!mail||!pass){showToast('Nombre, correo y contraseña son requeridos',true);return;}
+  let savedUser;
   if(editingUserId){
-    Object.assign(USERS.find(x=>x.id===editingUserId),{nombre,sucursal,mail,supervisor,pass,rol});
+    savedUser = USERS.find(x=>x.id===editingUserId);
+    Object.assign(savedUser,{nombre,sucursal,mail,supervisor,pass,rol});
   } else {
-    USERS.push({id:Date.now(),nombre,sucursal,mail,supervisor,pass,mustChange:true,rol,activo:true});
+    savedUser = {id:Date.now(),nombre,sucursal,mail,supervisor,pass,mustChange:true,rol,activo:true};
+    USERS.push(savedUser);
   }
-  saveUsers(); newUser(); showToast('Usuario guardado — deberá cambiar su contraseña al primer ingreso');
+  saveUsers();
+  saveUserToSheet({
+    id: savedUser.id,
+    Nombre: savedUser.nombre,
+    Mail: savedUser.mail,
+    Sucursal: savedUser.sucursal,
+    'Mail Supervisor': savedUser.supervisor||'',
+    'Contraseña': savedUser.pass,
+    Rol: savedUser.rol,
+    Activo: savedUser.activo?'Si':'No',
+    'Cambiar Clave': savedUser.mustChange?'Si':'No'
+  });
+  newUser(); showToast('Usuario guardado correctamente');
 }
 function cancelUser(){newUser();}
 function deleteUser(){
   if(!editingUserId) return;
   if(!confirm('¿Eliminar este usuario?')) return;
-  USERS=USERS.filter(x=>x.id!==editingUserId);
-  saveUsers(); newUser(); showToast('Usuario eliminado');
+  const delId = editingUserId;
+  USERS=USERS.filter(x=>x.id!==delId);
+  saveUsers();
+  deleteUserFromSheet(delId);
+  newUser(); showToast('Usuario eliminado');
 }
-function toggleUser(id,val){const u=USERS.find(x=>x.id===id);if(u){u.activo=val;saveUsers();}}
+function toggleUser(id,val){
+  const u=USERS.find(x=>x.id===id);
+  if(u){
+    u.activo=val; saveUsers();
+    saveUserToSheet({id:u.id,Nombre:u.nombre,Mail:u.mail,Sucursal:u.sucursal,'Mail Supervisor':u.supervisor||'','Contraseña':u.pass,Rol:u.rol,Activo:val?'Si':'No','Cambiar Clave':u.mustChange?'Si':'No'});
+  }
+}
 
 // ================================================================
 // HELPERS
@@ -1667,21 +1762,45 @@ function saveUser(){
   const pass=document.getElementById('f-pass').value;
   const rol=document.getElementById('f-rol').value;
   if(!nombre||!mail||!pass){showToast('Nombre, correo y contraseña son requeridos',true);return;}
+  let savedUser;
   if(editingUserId){
-    Object.assign(USERS.find(x=>x.id===editingUserId),{nombre,sucursal,mail,supervisor,pass,rol});
+    savedUser = USERS.find(x=>x.id===editingUserId);
+    Object.assign(savedUser,{nombre,sucursal,mail,supervisor,pass,rol});
   } else {
-    USERS.push({id:Date.now(),nombre,sucursal,mail,supervisor,pass,mustChange:true,rol,activo:true});
+    savedUser = {id:Date.now(),nombre,sucursal,mail,supervisor,pass,mustChange:true,rol,activo:true};
+    USERS.push(savedUser);
   }
-  saveUsers(); newUser(); showToast('Usuario guardado — deberá cambiar su contraseña al primer ingreso');
+  saveUsers();
+  saveUserToSheet({
+    id: savedUser.id,
+    Nombre: savedUser.nombre,
+    Mail: savedUser.mail,
+    Sucursal: savedUser.sucursal,
+    'Mail Supervisor': savedUser.supervisor||'',
+    'Contraseña': savedUser.pass,
+    Rol: savedUser.rol,
+    Activo: savedUser.activo?'Si':'No',
+    'Cambiar Clave': savedUser.mustChange?'Si':'No'
+  });
+  newUser(); showToast('Usuario guardado correctamente');
 }
 function cancelUser(){newUser();}
 function deleteUser(){
   if(!editingUserId) return;
   if(!confirm('¿Eliminar este usuario?')) return;
-  USERS=USERS.filter(x=>x.id!==editingUserId);
-  saveUsers(); newUser(); showToast('Usuario eliminado');
+  const delId = editingUserId;
+  USERS=USERS.filter(x=>x.id!==delId);
+  saveUsers();
+  deleteUserFromSheet(delId);
+  newUser(); showToast('Usuario eliminado');
 }
-function toggleUser(id,val){const u=USERS.find(x=>x.id===id);if(u){u.activo=val;saveUsers();}}
+function toggleUser(id,val){
+  const u=USERS.find(x=>x.id===id);
+  if(u){
+    u.activo=val; saveUsers();
+    saveUserToSheet({id:u.id,Nombre:u.nombre,Mail:u.mail,Sucursal:u.sucursal,'Mail Supervisor':u.supervisor||'','Contraseña':u.pass,Rol:u.rol,Activo:val?'Si':'No','Cambiar Clave':u.mustChange?'Si':'No'});
+  }
+}
 
 // ================================================================
 // HELPERS

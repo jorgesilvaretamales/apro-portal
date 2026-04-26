@@ -364,7 +364,28 @@ main{flex:1;padding:2rem}
     <div class="modal-title">Finalizar Solicitud de Muestra</div>
     <div class="auth-error" id="muestra-error"></div>
     <div class="modal-field"><label class="modal-label">Nombre Vendedor</label><input id="m-vendedor" placeholder="Nombre completo"></div>
-    <div class="modal-field"><label class="modal-label">Sucursal</label><input id="m-sucursal" placeholder="Sucursal"></div>
+    <div class="modal-field"><label class="modal-label">Sucursal</label>
+          <select id="m-sucursal" style="width:100%;border:none;border-bottom:1px solid var(--border);padding:0.6rem 0;font-family:'DM Sans',sans-serif;font-size:14px;background:transparent;color:var(--obsidian);outline:none;cursor:pointer;appearance:none;-webkit-appearance:none">
+            <option value="" disabled selected>Selecciona una sucursal</option>
+              <option value="Antofagasta">Antofagasta</option>
+              <option value="Arica">Arica</option>
+              <option value="Calama">Calama</option>
+              <option value="Concepción">Concepción</option>
+              <option value="Copiapo">Copiapo</option>
+              <option value="Coyhaique">Coyhaique</option>
+              <option value="Iquique">Iquique</option>
+              <option value="Los Andes">Los Andes</option>
+              <option value="Puerto Montt">Puerto Montt</option>
+              <option value="Punta Arenas">Punta Arenas</option>
+              <option value="Rancagua">Rancagua</option>
+              <option value="Salamanca">Salamanca</option>
+              <option value="Santiago">Santiago</option>
+              <option value="Temuco">Temuco</option>
+              <option value="Valdivia">Valdivia</option>
+              <option value="Vallenar">Vallenar</option>
+              <option value="Viña del Mar">Viña del Mar</option>
+          </select>
+        </div>
     <div class="modal-field"><label class="modal-label">Empresa Destino</label><input id="m-empresa" placeholder="Empresa destino de la muestra"></div>
     <div class="modal-field"><label class="modal-label">Teléfono</label><input id="m-telefono" placeholder="+56 9 xxxx xxxx"></div>
     <div class="modal-field"><label class="modal-label">Dirección de Envío</label><input id="m-direccion" placeholder="Calle, número, ciudad"></div>
@@ -376,8 +397,39 @@ main{flex:1;padding:2rem}
       <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:0.8rem">Artículos seleccionados</div>
       <div id="muestra-resumen"></div>
     </div>
-    <button class="btn-primary" onclick="doEnviarMuestra()">Finalizar y Enviar</button>
+    <button class="btn-primary" onclick="confirmarMuestra()">Finalizar y Enviar</button>
     <span class="link-btn" onclick="closeModal('modal-muestra')">Cancelar</span>
+  </div>
+</div>
+
+<!-- CONFIRM MUESTRA MODAL -->
+<div class="modal" id="modal-confirm-muestra">
+  <div class="modal-box" style="width:460px;max-width:95vw;text-align:center">
+    <!-- Icon -->
+    <div style="width:52px;height:52px;border:1px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8A97A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/>
+      </svg>
+    </div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400;margin-bottom:0.5rem">Confirmar envío</div>
+    <div style="width:40px;height:1px;background:var(--accent);margin:0 auto 1.5rem"></div>
+    <!-- Message -->
+    <div id="confirm-msg" style="font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--warm-gray);line-height:1.8;font-style:italic;margin-bottom:2rem;padding:0 0.5rem"></div>
+    <!-- Actions -->
+    <div style="display:flex;gap:0.8rem">
+      <button onclick="closeModal('modal-confirm-muestra')"
+        style="flex:1;padding:0.85rem;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--warm-gray);transition:all 0.2s"
+        onmouseover="this.style.background='var(--surface2)'"
+        onmouseout="this.style.background='transparent'">
+        Cancelar
+      </button>
+      <button onclick="closeModal('modal-confirm-muestra');doEnviarMuestra()"
+        style="flex:1;padding:0.85rem;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;border:1px solid var(--obsidian);background:var(--obsidian);color:#fff;transition:all 0.2s"
+        onmouseover="this.style.background='var(--charcoal)'"
+        onmouseout="this.style.background='var(--obsidian)'">
+        Confirmar y Enviar
+      </button>
+    </div>
   </div>
 </div>
 
@@ -429,10 +481,18 @@ main{flex:1;padding:2rem}
       <div class="detail-view" id="oc-detail-view">
         <div class="detail-header">
           <button class="back-btn" onclick="backToList('oc')">← Volver</button>
-          <div>
+          <div style="flex:1">
             <div class="detail-title" id="oc-detail-title"></div>
             <div class="detail-subtitle" id="oc-detail-sub"></div>
           </div>
+          <button id="oc-tracking-btn" style="display:none;align-items:center;gap:8px;background:none;border:1px solid var(--accent);color:var(--accent-dark);padding:0.5rem 1rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;transition:all 0.2s;white-space:nowrap"
+            onmouseover="this.style.background='var(--accent)';this.style.color='#fff'"
+            onmouseout="this.style.background='none';this.style.color='var(--accent-dark)'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Ver Tracking
+          </button>
         </div>
         <div id="oc-detail-content"></div>
       </div>
@@ -823,6 +883,21 @@ function showOCDetail(idx){
   document.getElementById('oc-detail-view').style.display='block';
   document.getElementById('oc-detail-title').textContent='OC '+oc;
   document.getElementById('oc-detail-sub').textContent=(rows[0]&&rows[0]['Sucursal'])||'';
+  // Get first OV for tracking button
+  const firstOV = rows[0]&&rows[0]['Orden de Venta'] ? String(rows[0]['Orden de Venta']).trim() : '';
+  const trackBtn = document.getElementById('oc-tracking-btn');
+  if(trackBtn){
+    if(firstOV){
+      trackBtn.style.display='inline-flex';
+      trackBtn.onclick = () => {
+        navigator.clipboard.writeText(firstOV).catch(()=>{});
+        window.open('https://ww4.spytrack.cl/vicsa/buscarov','_blank');
+        showToast('Número '+firstOV+' copiado — pégalo en el buscador');
+      };
+    } else {
+      trackBtn.style.display='none';
+    }
+  }
   const fm={};
   rows.forEach(r=>{const fn=r['N° Factura'];const k=(fn&&norm(String(fn))!=='sin facturar'&&String(fn).trim())?String(fn):'__SF__';if(!fm[k])fm[k]=[];fm[k].push(r);});
   let html='';
@@ -1027,7 +1102,30 @@ function openFinalizar(){
   resumen+='</table>';
   document.getElementById('muestra-resumen').innerHTML=resumen;
   document.getElementById('muestra-error').style.display='none';
+
   openModal('modal-muestra');
+}
+
+function confirmarMuestra(){
+  if(CART.length===0){showToast('No hay artículos seleccionados',true);return;}
+  // Validate form first
+  const vendedor=document.getElementById('m-vendedor').value.trim();
+  const empresa=document.getElementById('m-empresa').value.trim();
+  const telefono=document.getElementById('m-telefono').value.trim();
+  const direccion=document.getElementById('m-direccion').value.trim();
+  const err=document.getElementById('muestra-error'); err.style.display='none';
+  if(!vendedor||!empresa||!telefono||!direccion){
+    err.textContent='Por favor completa todos los campos antes de continuar';
+    err.style.display='block';
+    return;
+  }
+  // Build message
+  const sup = SESSION.supervisor && SESSION.supervisor.trim();
+  let msg = `Su solicitud de muestra será enviada a <strong>Jorge Silva</strong> (jorge.silva@vicsa.cl) con copia a su mail registrado (${SESSION.mail||'—'})`;
+  if(sup) msg += ` y con copia a su supervisor (${sup})`;
+  msg += '.';
+  document.getElementById('confirm-msg').innerHTML = msg;
+  openModal('modal-confirm-muestra');
 }
 
 async function doEnviarMuestra(){

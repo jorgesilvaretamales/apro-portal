@@ -439,8 +439,8 @@ main{flex:1;padding:2rem}
     <div class="header-logo">A<span>P</span>RO</div>
     <nav class="header-nav">
       <button class="nav-btn active" onclick="showSection('productos')" id="nav-productos">Productos</button>
-      <button class="nav-btn" onclick="showSection('muestras')" id="nav-muestras">Muestras <span class="cart-badge" id="cart-badge" style="display:none">0</span></button>
       <button class="nav-btn" onclick="showSection('oc')" id="nav-oc">Buscar OC</button>
+      <button class="nav-btn" onclick="showSection('muestras')" id="nav-muestras">Muestras <span class="cart-badge" id="cart-badge" style="display:none">0</span></button>
       <button class="nav-btn" onclick="showSection('admin')" id="nav-admin" style="display:none">Mantenedor</button>
     </nav>
     <div class="header-right">
@@ -485,14 +485,6 @@ main{flex:1;padding:2rem}
             <div class="detail-title" id="oc-detail-title"></div>
             <div class="detail-subtitle" id="oc-detail-sub"></div>
           </div>
-          <button id="oc-tracking-btn" style="display:none;align-items:center;gap:8px;background:none;border:1px solid var(--accent);color:var(--accent-dark);padding:0.5rem 1rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;transition:all 0.2s;white-space:nowrap"
-            onmouseover="this.style.background='var(--accent)';this.style.color='#fff'"
-            onmouseout="this.style.background='none';this.style.color='var(--accent-dark)'">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            Ver Tracking
-          </button>
         </div>
         <div id="oc-detail-content"></div>
       </div>
@@ -883,29 +875,22 @@ function showOCDetail(idx){
   document.getElementById('oc-detail-view').style.display='block';
   document.getElementById('oc-detail-title').textContent='OC '+oc;
   document.getElementById('oc-detail-sub').textContent=(rows[0]&&rows[0]['Sucursal'])||'';
-  // Get first OV for tracking button
-  const firstOV = rows[0]&&rows[0]['Orden de Venta'] ? String(rows[0]['Orden de Venta']).trim() : '';
-  const trackBtn = document.getElementById('oc-tracking-btn');
-  if(trackBtn){
-    if(firstOV){
-      trackBtn.style.display='inline-flex';
-      trackBtn.onclick = () => {
-        navigator.clipboard.writeText(firstOV).catch(()=>{});
-        window.open('https://ww4.spytrack.cl/vicsa/buscarov','_blank');
-        showToast('Número '+firstOV+' copiado — pégalo en el buscador');
-      };
-    } else {
-      trackBtn.style.display='none';
-    }
-  }
+
   const fm={};
   rows.forEach(r=>{const fn=r['N° Factura'];const k=(fn&&norm(String(fn))!=='sin facturar'&&String(fn).trim())?String(fn):'__SF__';if(!fm[k])fm[k]=[];fm[k].push(r);});
   let html='';
   Object.keys(fm).filter(k=>k!=='__SF__').forEach(fn=>{
     const fr=fm[fn][0];
+    const ovF=String(fr['Orden de Venta']||'').trim();
+    const trackBtnF=ovF?`<button onclick="copyAndTrack('${ovF}',event)"
+      style="display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid rgba(200,169,122,0.5);color:#C8A97A;padding:3px 9px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;border-radius:2px"
+      onmouseover="this.style.background='rgba(200,169,122,0.15)'" onmouseout="this.style.background='none'">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Ver Tracking</button>`:'';
     html+=`<div class="factura-card"><div class="factura-head">
-      <span class="factura-num">${esc(fn)}</span>
-      <div><div class="fh-label">Orden de Venta</div><div class="fh-value">${esc(fr['Orden de Venta']||'—')}</div></div>
+      <div><div class="fh-label">Estado</div><div class="fh-value"><span class="factura-num" style="font-size:1rem">${esc(fn)}</span></div></div>
+      <div><div class="fh-label">Orden de Venta</div><div class="fh-value">${esc(ovF||'—')}</div></div>
+      ${trackBtnF}
       <div><div class="fh-label">Fecha OV</div><div class="fh-value">${fmtF(fr['Fecha orden de venta'])}</div></div>
       <div><div class="fh-label">Fecha Factura</div><div class="fh-value">${fmtF(fr['Fecha de Factura'])}</div></div>
       ${fr['Comentarios']?`<div><div class="fh-label">Comentarios</div><div class="fh-value">${esc(fr['Comentarios'])}</div></div>`:''}
@@ -913,9 +898,16 @@ function showOCDetail(idx){
   });
   if(fm['__SF__']){
     const sfr=fm['__SF__'][0];
+    const ovSF=String(sfr['Orden de Venta']||'').trim();
+    const trackBtnSF=ovSF?`<button onclick="copyAndTrack('${ovSF}',event)"
+      style="display:inline-flex;align-items:center;gap:5px;background:none;border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.85);padding:3px 9px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;border-radius:2px"
+      onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Ver Tracking</button>`:'';
     html+=`<div class="factura-card"><div class="sinfact-head">
       <div><div class="fh-label">Estado</div><div class="fh-value">Sin Facturar</div></div>
-      <div><div class="fh-label">Orden de Venta</div><div class="fh-value">${esc(sfr['Orden de Venta']||'—')}</div></div>
+      <div><div class="fh-label">Orden de Venta</div><div class="fh-value">${esc(ovSF||'—')}</div></div>
+      ${trackBtnSF}
       <div><div class="fh-label">Fecha OV</div><div class="fh-value">${fmtF(sfr['Fecha orden de venta'])}</div></div>
     </div>${buildOCTable(fm['__SF__'])}</div>`;
   }
@@ -1268,6 +1260,13 @@ function toggleUser(id,val){const u=USERS.find(x=>x.id===id);if(u){u.activo=val;
 // ================================================================
 // HELPERS
 // ================================================================
+function copyAndTrack(ov, event){
+  if(event) event.stopPropagation();
+  navigator.clipboard.writeText(ov).catch(()=>{});
+  window.open('https://ww4.spytrack.cl/vicsa/buscarov','_blank');
+  showToast('OV '+ov+' copiada — pégala en el buscador de tracking');
+}
+
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtS(v){if(v===''||v===null||v===undefined)return '<span class="muted">—</span>';const s=String(v).trim();const neg=s.startsWith('(')||s.startsWith('-');const n=parseFloat(s.replace(/[()]/g,''));if(!isNaN(n)&&(n<0||neg))return `<span class="neg">-${Math.abs(n)}</span>`;return esc(s);}
